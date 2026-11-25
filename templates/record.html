@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Record update — {{ questionnaire.title }}{% endblock %}
+{% block title %}+Update — {{ questionnaire.title }}{% endblock %}
 {% block content %}
   <p>
     <a class="text-sm font-medium text-brand-deep hover:text-brand-deeper" href="{{ url_for('review', slug=questionnaire.slug) }}">Back to responses</a>
@@ -43,7 +43,7 @@
         <p class="mt-5 text-sm text-stone-600">They have not submitted a status yet.</p>
       {% endif %}
 
-      {% with can_submit=person.name, submit_label="Record update" %}
+      {% with can_submit=person.name, submit_label="+Update" %}
         {% include "update_fields.html" %}
       {% endwith %}
     </form>

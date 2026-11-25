@@ -1,6 +1,7 @@
 {% set person_name = row.latest.name if row.latest and row.latest.name else "" %}
 {% set person_status = row.latest.status if row.latest else "Waiting" %}
-<tr class="border-b border-stone-100 last:border-b-0" data-person data-status="{{ person_status }}" data-search="{{ (person_name ~ ' ' ~ row.email)|lower }}">
+{% set updated_by = recorder_label(row.latest.recorded_by) if row.latest and row.latest.recorded_by else "" %}
+<tr class="border-b border-stone-100 last:border-b-0" data-person data-status="{{ person_status }}" data-search="{{ (person_name ~ ' ' ~ row.email ~ ' ' ~ updated_by)|lower }}">
   <td class="px-3 py-2 font-medium text-stone-900">
     {% if person_name %}{{ person_name }}{% else %}<span class="text-stone-400">—</span>{% endif %}
   </td>
@@ -21,13 +22,13 @@
     {% else %}
       {% with status="Waiting" %}{% include "status_badge.html" %}{% endwith %}
     {% endif %}
-    {% if row.latest and row.latest.recorded_by %}
-      <p class="mt-1 text-xs text-stone-500">Recorded by {{ recorder_label(row.latest.recorded_by) }}</p>
-    {% endif %}
+  </td>
+  <td class="px-3 py-2 text-stone-600">
+    {% if updated_by %}{{ updated_by }}{% else %}<span class="text-stone-400">—</span>{% endif %}
   </td>
   <td class="px-3 py-2 text-right">
     <div class="flex justify-end gap-2">
-      <a class="inline-flex shrink-0 items-center justify-center rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 no-underline hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" href="{{ url_for('record_response', slug=questionnaire.slug, email=row.email) }}">Record update</a>
+      <a class="inline-flex shrink-0 items-center justify-center rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 no-underline hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" href="{{ url_for('record_response', slug=questionnaire.slug, email=row.email) }}">+Update</a>
       {% if row.latest %}
         <a class="inline-flex shrink-0 items-center justify-center rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 no-underline hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" href="{{ url_for('response_detail', slug=questionnaire.slug, folder=row.latest.folder) }}">View</a>
       {% endif %}
