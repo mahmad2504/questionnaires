@@ -1,0 +1,30 @@
+{% set person_name = row.latest.name if row.latest and row.latest.name else "" %}
+{% set person_status = row.latest.status if row.latest else "Waiting" %}
+<tr class="border-b border-stone-100 last:border-b-0" data-person data-status="{{ person_status }}" data-search="{{ (person_name ~ ' ' ~ row.email)|lower }}">
+  <td class="px-3 py-2 font-medium text-stone-900">
+    {% if person_name %}{{ person_name }}{% else %}<span class="text-stone-400">—</span>{% endif %}
+  </td>
+  <td class="break-all px-3 py-2 text-stone-600">{{ row.email }}</td>
+  <td class="whitespace-nowrap px-3 py-2 text-stone-600">
+    {% if row.latest %}
+      <time datetime="{{ row.latest.submitted_at }}">{{ row.latest.submitted_at.replace("T", " ") }}</time>
+    {% else %}
+      <span class="text-stone-400">—</span>
+    {% endif %}
+  </td>
+  <td class="px-3 py-2 text-stone-600">
+    {% if row.latest %}{{ row.replies|length }}{% else %}<span class="text-stone-400">—</span>{% endif %}
+  </td>
+  <td class="px-3 py-2">
+    {% if row.latest %}
+      {% with status=row.latest.status %}{% include "status_badge.html" %}{% endwith %}
+    {% else %}
+      {% with status="Waiting" %}{% include "status_badge.html" %}{% endwith %}
+    {% endif %}
+  </td>
+  <td class="px-3 py-2 text-right">
+    {% if row.latest %}
+      <a class="inline-flex items-center justify-center rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 no-underline hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2" href="{{ url_for('response_detail', slug=questionnaire.slug, folder=row.latest.folder) }}">View</a>
+    {% endif %}
+  </td>
+</tr>

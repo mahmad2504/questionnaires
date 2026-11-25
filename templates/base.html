@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Questionnaires{% endblock %}</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style type="text/tailwindcss">
+    @theme {
+      --color-teal-700: #147068;
+      --color-teal-800: #0f5c56;
+      --color-teal-900: #0a433e;
+    }
+    code {
+      @apply rounded bg-stone-100 px-1.5 py-0.5 font-mono text-[0.9em] text-stone-800;
+    }
+    .instructions > :first-child {
+      margin-top: 0;
+    }
+    .instructions h1,
+    .instructions h2,
+    .instructions h3 {
+      @apply mb-2 font-semibold tracking-tight text-stone-900;
+    }
+    .instructions p {
+      @apply mb-3 leading-6 text-stone-700;
+    }
+    .instructions ul {
+      @apply mb-3 list-disc space-y-1 pl-5 text-stone-700;
+    }
+    .instructions ol {
+      @apply mb-3 list-decimal space-y-1 pl-5 text-stone-700;
+    }
+    .instructions a {
+      @apply font-medium text-teal-800 underline;
+    }
+    .instructions :last-child {
+      margin-bottom: 0;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-stone-50 font-sans text-stone-900 antialiased">
+  <header class="sticky top-0 z-10 border-b border-stone-200 bg-white/90 backdrop-blur">
+    <div class="mx-auto flex w-full {{ self.main_width() }} flex-col gap-3 px-4 py-3.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-6">
+      {% if request.endpoint in ["questionnaire", "thanks", "own_responses"] %}
+        <span class="text-base font-semibold tracking-tight text-stone-900">Status update</span>
+      {% elif request.endpoint in ["login", "set_password"] %}
+        <span class="text-base font-semibold tracking-tight text-stone-900">Questionnaires</span>
+      {% elif request.path.startswith("/admin") %}
+        <a class="text-base font-semibold tracking-tight text-stone-900" href="{{ url_for('admin') }}">Questionnaires</a>
+      {% else %}
+        <a class="text-base font-semibold tracking-tight text-stone-900" href="{{ url_for('home') }}">Questionnaires</a>
+      {% endif %}
+      {% if session.get("email") %}
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-stone-600 sm:ml-auto">
+          {% if is_admin %}
+            <a class="font-medium text-teal-800 hover:text-teal-900" href="{{ url_for('admin') }}">Admin</a>
+          {% endif %}
+          <span class="text-stone-500">{{ signed_in_name or session.get("email") }}</span>
+          <form method="post" action="{{ url_for('logout') }}">
+            <button type="submit" class="rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2">Sign out</button>
+          </form>
+        </div>
+      {% endif %}
+    </div>
+  </header>
+  <main class="mx-auto w-full {% block main_width %}max-w-3xl{% endblock %} px-4 py-10 sm:px-6">
+    {% block content %}{% endblock %}
+  </main>
+  <script>
+    document.querySelectorAll("[data-copy]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        var value = button.getAttribute("data-copy");
+        var input = button.parentElement.querySelector("input");
+        var done = function () {
+          var previous = button.textContent;
+          button.textContent = "Copied";
+          setTimeout(function () { button.textContent = previous; }, 1500);
+        };
+        var fallback = function () {
+          if (input) {
+            input.focus();
+            input.select();
+            try { document.execCommand("copy"); } catch (err) {}
+          }
+          done();
+        };
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(value).then(done, fallback);
+          return;
+        }
+        fallback();
+      });
+    });
+  </script>
+</body>
+</html>

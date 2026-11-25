@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}{{ questionnaire.title }} responses{% endblock %}
+{% block main_width %}max-w-6xl{% endblock %}
+{% block content %}
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div class="min-w-0">
+      <h1 class="text-2xl font-semibold tracking-tight text-stone-900">{{ questionnaire.title }}</h1>
+      <p class="mt-2 text-sm leading-6 text-stone-600">People who have submitted are listed first, newest update at the top. Open a row to read that update.</p>
+      {% if progress %}
+        {% set total = progress.expected %}
+        {% set done = progress.replied %}
+        {% set pct = (done * 100 / total) if total else 0 %}
+        <div class="mt-3">
+          <p class="text-sm text-stone-500">{{ done }} of {{ total }} replied</p>
+          <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-200" role="progressbar" aria-valuenow="{{ done }}" aria-valuemin="0" aria-valuemax="{{ total }}">
+            <div class="h-full rounded-full bg-teal-800" style="width: {{ pct|round(1) }}%"></div>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <a class="inline-flex items-center justify-center rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 no-underline hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2" href="{{ url_for('download_csv', slug=questionnaire.slug) }}">Download summary.csv</a>
+    </div>
+  </div>
+
+  <label class="mt-6 block text-sm font-medium text-stone-700" for="team-link">Team link</label>
+  <div class="mt-1.5 flex gap-2">
+    <input id="team-link" class="min-w-0 flex-1 rounded-lg border border-stone-300 bg-stone-100 px-3 py-2 font-mono text-sm text-stone-600 outline-none" readonly value="{{ team_link }}">
+    <button class="inline-flex shrink-0 items-center justify-center rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2" type="button" data-copy="{{ team_link }}">Copy</button>
+  </div>
+
+  {% if not model.has_list %}
+    <p class="mt-4 text-sm text-stone-500">No expected email list was provided. Add <code>respondents.txt</code> to this questionnaire folder to track who has replied.</p>
+  {% endif %}
+
+  {% if model.rows or model.other_rows %}
+    <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-end">
+      <div class="w-full max-w-md">
+        <label class="block text-sm font-medium text-stone-700" for="person-filter">Find a person</label>
+        <input id="person-filter" class="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm outline-none focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20" type="search" placeholder="Name or email" autocomplete="off">
+      </div>
+      <div class="w-full sm:w-48">
+        <label class="block text-sm font-medium text-stone-700" for="status-filter">Status</label>
+        <select id="status-filter" class="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm outline-none focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20">
+          <option value="">All</option>
+          {% for status in model.statuses %}
+            <option value="{{ status }}">{{ status }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <p id="filter-empty" class="mt-4 text-sm text-stone-500" hidden>No matching people.</p>
+  {% endif %}
+
+  {% if model.rows %}
+    <div class="mt-6" data-person-table>
+      {% set rows = model.rows %}
+      {% include "review_table.html" %}
+    </div>
+  {% elif not model.other_rows %}
+    <p class="mt-6 rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-10 text-center text-stone-500">No responses yet.</p>
+  {% endif %}
+
+  {% if model.other_rows %}
+    <section class="mt-8" data-person-table>
+      <h2 class="text-lg font-semibold tracking-tight text-stone-900">Other replies</h2>
+      <p class="mt-2 text-sm text-stone-500">These emails were not in <code>respondents.txt</code>. The responses are kept.</p>
+      <div class="mt-4">
+        {% set rows = model.other_rows %}
+        {% include "review_table.html" %}
+      </div>
+    </section>
+  {% endif %}
+  {% if model.rows or model.other_rows %}
+    <script>
+      (function () {
+        var filter = document.getElementById("person-filter");
+        var statusFilter = document.getElementById("status-filter");
+        var empty = document.getElementById("filter-empty");
+        if (!filter) return;
+        var apply = function () {
+          var query = filter.value.trim().toLowerCase();
+          var status = statusFilter ? statusFilter.value : "";
+          var visible = 0;
+          document.querySelectorAll("[data-person]").forEach(function (row) {
+            var haystack = row.getAttribute("data-search") || "";
+            var rowStatus = row.getAttribute("data-status") || "";
+            var matchesName = query === "" || haystack.indexOf(query) !== -1;
+            var matchesStatus = status === "" || rowStatus === status;
+            var show = matchesName && matchesStatus;
+            row.hidden = !show;
+            if (show) visible += 1;
+          });
+          document.querySelectorAll("[data-person-table]").forEach(function (section) {
+            section.hidden = section.querySelector("[data-person]:not([hidden])") === null;
+          });
+          if (empty) empty.hidden = visible !== 0;
+        };
+        filter.addEventListener("input", apply);
+        if (statusFilter) statusFilter.addEventListener("change", apply);
+      })();
+    </script>
+  {% endif %}
+{% endblock %}

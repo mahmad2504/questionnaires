@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Questionnaires{% endblock %}
+{% block content %}
+  <h1 class="text-2xl font-semibold tracking-tight text-stone-900">Questionnaires</h1>
+  <p class="mt-2 text-stone-600">Open a questionnaire to send your update.</p>
+  {% if cards %}
+    <ul class="mt-6 space-y-4">
+      {% for card in cards %}
+        <li class="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+          <h2 class="text-lg font-semibold tracking-tight text-stone-900">{{ card.title }}</h2>
+          {% if card.closed %}
+            <p class="mt-2 text-sm text-stone-500">Closed. You can still read your saved response.</p>
+          {% endif %}
+          <div class="mt-4 flex flex-wrap items-center gap-3">
+            {% if not card.closed %}
+              <a class="inline-flex items-center justify-center rounded-lg bg-teal-800 px-4 py-2 text-sm font-medium text-white no-underline hover:bg-teal-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2" href="{{ card.link }}">Open</a>
+            {% endif %}
+            {% if card.has_reply %}
+              <a class="inline-flex items-center justify-center rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 no-underline hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2" href="{{ card.view_link }}">Your previous responses</a>
+            {% endif %}
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="mt-6 rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-10 text-center text-stone-500">No questionnaires are open.</p>
+  {% endif %}
+{% endblock %}

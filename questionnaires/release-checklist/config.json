@@ -1,0 +1,9 @@
+{
+  "title": "Release checklist",
+  "statuses": [
+    "Done",
+    "In progress",
+    "Blocked"
+  ],
+  "enabled": true
+}

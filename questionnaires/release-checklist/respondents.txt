@@ -1,0 +1,4 @@
+# Emails you expect a reply from. One address per line.
+jane@example.com
+sam@example.com
+mumtaz.ahmad@logicsilicon.com

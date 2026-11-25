@@ -1,0 +1,4 @@
+# One person per line: Name <email>
+# Only these people can sign in.
+# Blank lines and lines starting with # are ignored.
+Mumtaz Ahmad <mumtaz.ahmad@logicsilicon.com>

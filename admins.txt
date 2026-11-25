@@ -1,0 +1,3 @@
+# One email address per line. Only these addresses can open /admin.
+# Blank lines and lines starting with # are ignored.
+mumtaz.ahmad@logicsilicon.com
