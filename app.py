@@ -1062,30 +1062,52 @@ def home():
     return render_template("home.html", cards=cards)
 
 
+def admin_card(questionnaire: dict) -> dict:
+    replies = load_responses(questionnaire["slug"])
+    return {
+        "title": questionnaire["title"],
+        "slug": questionnaire["slug"],
+        "link": url_for("questionnaire", slug=questionnaire["slug"], _external=True),
+        "review_link": url_for("review", slug=questionnaire["slug"]),
+        "progress": reply_progress(questionnaire, replies),
+        "deadline": questionnaire["deadline"],
+        "deadline_label": questionnaire["deadline_label"],
+        "deadline_overdue": questionnaire["deadline_overdue"],
+        "start": questionnaire["start"],
+        "start_label": questionnaire["start_label"],
+        "started": questionnaire["started"],
+    }
+
+
 @app.get("/admin")
 def admin():
-    cards = []
-    disabled_cards = []
-    for questionnaire in list_questionnaires():
-        replies = load_responses(questionnaire["slug"])
-        card = {
-            "title": questionnaire["title"],
-            "slug": questionnaire["slug"],
-            "link": url_for("questionnaire", slug=questionnaire["slug"], _external=True),
-            "review_link": url_for("review", slug=questionnaire["slug"]),
-            "progress": reply_progress(questionnaire, replies),
-            "deadline": questionnaire["deadline"],
-            "deadline_label": questionnaire["deadline_label"],
-            "deadline_overdue": questionnaire["deadline_overdue"],
-            "start": questionnaire["start"],
-            "start_label": questionnaire["start_label"],
-            "started": questionnaire["started"],
-        }
-        if questionnaire["enabled"]:
-            cards.append(card)
+    found = list_questionnaires()
+    active_cards = []
+    planned_cards = []
+    for questionnaire in found:
+        if not questionnaire["enabled"]:
+            continue
+        card = admin_card(questionnaire)
+        if questionnaire["started"]:
+            active_cards.append(card)
         else:
-            disabled_cards.append(card)
-    return render_template("admin.html", cards=cards, disabled_cards=disabled_cards)
+            planned_cards.append(card)
+    return render_template(
+        "admin.html",
+        active_cards=active_cards,
+        planned_cards=planned_cards,
+        any_questionnaires=bool(found),
+    )
+
+
+@app.get("/admin/archive")
+def archive():
+    cards = [
+        admin_card(questionnaire)
+        for questionnaire in list_questionnaires()
+        if not questionnaire["enabled"]
+    ]
+    return render_template("archive.html", cards=cards)
 
 
 @app.post("/admin/q/<slug>/enabled")
@@ -1096,7 +1118,7 @@ def update_questionnaire_enabled(slug: str):
         abort(400)
     if not set_questionnaire_enabled(slug, raw == "1"):
         abort(404)
-    return redirect(url_for("admin"))
+    return redirect(url_for("archive" if raw == "0" else "admin"))
 
 
 @app.route("/q/<slug>", methods=["GET", "POST"])

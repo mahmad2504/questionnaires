@@ -12,6 +12,7 @@ slug = "release-checklist"
 root = Path(__file__).resolve().parent
 config_path = root / "questionnaires" / slug / "config.json"
 sample = root / "questionnaires" / "enabled-default-check"
+planned = root / "questionnaires" / "planned-check"
 
 
 def sign_in(address=email):
@@ -21,8 +22,13 @@ def sign_in(address=email):
 
 def restore():
     application.set_questionnaire_enabled(slug, True)
-    if sample.exists():
-        shutil.rmtree(sample)
+    for folder in (sample, planned):
+        if folder.exists():
+            shutil.rmtree(folder)
+
+
+def active_html(page: str) -> str:
+    return page.split('id="planned"', 1)[0]
 
 
 try:
@@ -41,31 +47,35 @@ try:
     admin = client.get("/admin")
     assert admin.status_code == 200, admin.status_code
     admin_body = admin.get_data(as_text=True)
-    assert "Release checklist" in admin_body
+    assert "Release checklist" in active_html(admin_body)
     assert "Turn off" in admin_body
     assert "Open form" in admin_body
     assert "Review responses" in admin_body
     assert "Turned off" not in admin_body
     assert 'href="/admin"' in admin_body
+    assert 'href="/admin/archive"' in admin_body
 
     off = client.post(f"/admin/q/{slug}/enabled", data={"enabled": "0"}, follow_redirects=True)
     assert off.status_code == 200, off.status_code
     off_body = off.get_data(as_text=True)
-    assert "Turned off" in off_body
+    assert "Archive" in off_body
+    assert "Release checklist" in off_body
     assert "Turn on" in off_body
     assert "Open form" not in off_body
-    assert "No questionnaires are turned on." in off_body
     assert 'value="http://localhost/q/release-checklist"' not in off_body
+    admin_off = client.get("/admin")
+    admin_off_body = admin_off.get_data(as_text=True)
+    assert "Release checklist" not in admin_off_body
 
     user_off = client.get("/")
     user_off_body = user_off.get_data(as_text=True)
-    assert "Release checklist" not in user_off_body
-    assert "No questionnaires are open." in user_off_body
+    assert "Release checklist" in user_off_body
+    assert "Closed. You can still read your saved response." in user_off_body
 
     form = client.get(f"/q/{slug}")
     form_body = form.get_data(as_text=True)
-    assert form.status_code == 404, form.status_code
-    assert "Questionnaire turned off" in form_body
+    assert form.status_code == 200, form.status_code
+    assert "This questionnaire is not accepting replies." in form_body
     assert 'name="update"' not in form_body
 
     posted = client.post(
@@ -81,7 +91,8 @@ try:
     assert review.status_code == 200, review.status_code
 
     old_review = client.get(f"/q/{slug}/responses")
-    assert old_review.status_code == 404, old_review.status_code
+    assert old_review.status_code == 200, old_review.status_code
+    assert "Your previous responses" in old_review.get_data(as_text=True)
 
     bad = client.post(f"/admin/q/{slug}/enabled", data={"enabled": "yes"})
     assert bad.status_code == 400, bad.status_code
@@ -107,6 +118,8 @@ try:
     sign_in(other)
     denied = client.get("/admin")
     assert denied.status_code == 404, denied.status_code
+    denied_archive = client.get("/admin/archive")
+    assert denied_archive.status_code == 404, denied_archive.status_code
     denied_body = denied.get_data(as_text=True)
     assert "Page not found" in denied_body
     assert "Turn off" not in denied_body
@@ -120,9 +133,8 @@ try:
     other_home = client.get("/")
     assert other_home.status_code == 200, other_home.status_code
     other_body = other_home.get_data(as_text=True)
-    assert "Release checklist" in other_body
-    assert ">Open</a>" in other_body
     assert ">Admin</a>" not in other_body
+    assert "Turn off" not in other_body
     blocked = client.post(f"/admin/q/{slug}/enabled", data={"enabled": "0"})
     assert blocked.status_code == 404, blocked.status_code
     still_on = json.loads(config_path.read_text(encoding="utf-8"))
@@ -130,6 +142,7 @@ try:
     application.load_allowed_emails = real_allowed
 
     sign_in()
+    before_off = client.get("/admin").get_data(as_text=True).count("Turn off")
     sample.mkdir()
     (sample / "instructions.md").write_text("Hello\n", encoding="utf-8")
     (sample / "config.json").write_text(
@@ -138,14 +151,31 @@ try:
     )
     default_admin = client.get("/admin")
     default_body = default_admin.get_data(as_text=True)
-    assert "Default on" in default_body
-    assert default_body.count("Turn off") == 2
+    assert "Default on" in active_html(default_body)
+    assert default_body.count("Turn off") == before_off + 1
     assert "Turned off" not in default_body
     default_home = client.get("/")
     default_home_body = default_home.get_data(as_text=True)
     assert "Default on" in default_home_body
     assert "Release checklist" in default_home_body
     assert "Turn off" not in default_home_body
+
+    planned.mkdir()
+    (planned / "instructions.md").write_text("Later\n", encoding="utf-8")
+    (planned / "config.json").write_text(
+        json.dumps({"title": "Opens later", "statuses": ["Done"], "start": "2099-01-01"}) + "\n",
+        encoding="utf-8",
+    )
+    planned_body = client.get("/admin").get_data(as_text=True)
+    assert 'id="planned"' in planned_body
+    active_part, planned_part = planned_body.split('id="planned"', 1)
+    assert "Opens later" not in active_part
+    assert "Default on" in active_part
+    assert "Opens later" in planned_part
+    assert "Becomes active" in planned_part
+    assert "1 Jan 2099" in planned_part
+    home_later = client.get("/").get_data(as_text=True)
+    assert "Opens later" not in home_later
 
     print("ok")
 finally:

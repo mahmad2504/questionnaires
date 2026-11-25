@@ -99,7 +99,7 @@ A questionnaire needs two files. `respondents.txt` is optional.
 | `title` | Yes | Heading on the form and in the admin list. |
 | `statuses` | No | Choices on the form. If you omit it, the choices are Done, In progress, and Blocked. |
 | `label` | No | Short name next to the logo. If you omit it, the label is Responses. |
-| `start` | No | Date the questionnaire appears on the people portal, `YYYY-MM-DD`, or date and time, `YYYY-MM-DDTHH:MM`. Times are local. A date opens at the beginning of that day. If you omit it, or the value is not a valid date, the questionnaire is visible as soon as it is turned on. It stays on the people portal until an admin turns it off. |
+| `start` | No | Date the questionnaire appears on the people portal, `YYYY-MM-DD`, or date and time, `YYYY-MM-DDTHH:MM`. Times are local. A date opens at the beginning of that day. If you omit it, or the value is not a valid date, the questionnaire is visible as soon as it is turned on. On the admin page, a future start is listed under Planned with the time it becomes active. After that time it is listed under Active. It stays on the people portal until an admin turns it off. |
 | `deadline` | No | Due date, `YYYY-MM-DD`, or date and time, `YYYY-MM-DDTHH:MM`. Times are local. A date is due through the end of that day. The due line is red after it has passed. If you omit it, or the value is not a valid date, no deadline is shown. |
 | `enabled` | No | `true` accepts replies. `false` closes the form. If you omit it, the questionnaire is open. |
 
@@ -122,7 +122,7 @@ If this file is missing, anyone in `allowed.txt` can open the questionnaire, and
 
 ### Turn a questionnaire on or off
 
-Set `"enabled": false` in `config.json`, or sign in as an admin and use Turn off. A closed questionnaire stays in the admin list. People who already replied can still read their saved response. They cannot send a new one until you turn it back on.
+Set `"enabled": false` in `config.json`, or sign in as an admin and use Turn off. A closed questionnaire leaves the admin list and is listed at [http://127.0.0.1:5000/admin/archive](http://127.0.0.1:5000/admin/archive). People who already replied can still read their saved response. They cannot send a new one until you turn it back on.
 
 Restart is not required after you add or edit a questionnaire. Refresh the page.
 

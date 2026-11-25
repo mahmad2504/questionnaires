@@ -1,0 +1,35 @@
+<li class="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+  <h2 class="text-lg font-semibold tracking-tight text-stone-900">{{ card.title }}</h2>
+  {% with deadline=card.deadline, deadline_label=card.deadline_label, overdue=card.deadline_overdue %}{% include "deadline.html" %}{% endwith %}
+  {% if planned %}
+    <p class="mt-2 text-sm font-medium text-stone-900">Becomes active <time datetime="{{ card.start }}">{{ card.start_label }}</time></p>
+  {% else %}
+    {% with start=card.start, start_label=card.start_label, started=card.started %}{% include "start.html" %}{% endwith %}
+  {% endif %}
+  {% if card.progress %}
+    {% set total = card.progress.expected %}
+    {% set done = card.progress.replied %}
+    {% set pct = (done * 100 / total) if total else 0 %}
+    <div class="mt-3">
+      <p class="text-sm text-stone-500">{{ done }} of {{ total }} replied</p>
+      <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-200" role="progressbar" aria-valuenow="{{ done }}" aria-valuemin="0" aria-valuemax="{{ total }}">
+        <div class="h-full rounded-full bg-brand" style="width: {{ pct|round(1) }}%"></div>
+      </div>
+    </div>
+  {% else %}
+    <p class="mt-2 text-sm text-stone-500">No expected email list</p>
+  {% endif %}
+  <label class="mt-4 block text-sm font-medium text-stone-700" for="link-{{ card.slug }}">Team link</label>
+  <div class="mt-1.5 flex gap-2">
+    <input id="link-{{ card.slug }}" class="min-w-0 flex-1 rounded-md border border-stone-300 bg-stone-100 px-3 py-2 font-mono text-sm text-stone-600 outline-none" readonly value="{{ card.link }}">
+    <button class="inline-flex shrink-0 items-center justify-center rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" type="button" data-copy="{{ card.link }}">Copy</button>
+  </div>
+  <div class="mt-4 flex flex-wrap items-center gap-3">
+    <a class="inline-flex items-center justify-center rounded-md bg-brand px-4 py-2 text-sm font-medium text-brand-ink no-underline hover:bg-brand-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" href="{{ card.link }}">Open form</a>
+    <a class="inline-flex items-center justify-center rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 no-underline hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" href="{{ card.review_link }}">Review responses</a>
+    <form method="post" action="{{ url_for('update_questionnaire_enabled', slug=card.slug) }}">
+      <input type="hidden" name="enabled" value="0">
+      <button class="inline-flex items-center justify-center rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" type="submit">Turn off</button>
+    </form>
+  </div>
+</li>

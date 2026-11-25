@@ -1,85 +1,41 @@
 {% extends "base.html" %}
 {% block title %}Questionnaires{% endblock %}
 {% block content %}
-  <h1 class="text-2xl font-semibold tracking-tight text-stone-900">Questionnaires</h1>
-  {% if cards %}
-    <ul class="mt-6 space-y-4">
-      {% for card in cards %}
-        <li class="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-          <h2 class="text-lg font-semibold tracking-tight text-stone-900">{{ card.title }}</h2>
-          {% with deadline=card.deadline, deadline_label=card.deadline_label, overdue=card.deadline_overdue %}{% include "deadline.html" %}{% endwith %}
-          {% with start=card.start, start_label=card.start_label, started=card.started %}{% include "start.html" %}{% endwith %}
-          {% if card.progress %}
-            {% set total = card.progress.expected %}
-            {% set done = card.progress.replied %}
-            {% set pct = (done * 100 / total) if total else 0 %}
-            <div class="mt-3">
-              <p class="text-sm text-stone-500">{{ done }} of {{ total }} replied</p>
-              <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-200" role="progressbar" aria-valuenow="{{ done }}" aria-valuemin="0" aria-valuemax="{{ total }}">
-                <div class="h-full rounded-full bg-brand" style="width: {{ pct|round(1) }}%"></div>
-              </div>
-            </div>
-          {% else %}
-            <p class="mt-2 text-sm text-stone-500">No expected email list</p>
-          {% endif %}
-          <label class="mt-4 block text-sm font-medium text-stone-700" for="link-{{ card.slug }}">Team link</label>
-          <div class="mt-1.5 flex gap-2">
-            <input id="link-{{ card.slug }}" class="min-w-0 flex-1 rounded-md border border-stone-300 bg-stone-100 px-3 py-2 font-mono text-sm text-stone-600 outline-none" readonly value="{{ card.link }}">
-            <button class="inline-flex shrink-0 items-center justify-center rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" type="button" data-copy="{{ card.link }}">Copy</button>
-          </div>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <a class="inline-flex items-center justify-center rounded-md bg-brand px-4 py-2 text-sm font-medium text-brand-ink no-underline hover:bg-brand-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" href="{{ card.link }}">Open form</a>
-            <a class="inline-flex items-center justify-center rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 no-underline hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" href="{{ card.review_link }}">Review responses</a>
-            <form method="post" action="{{ url_for('update_questionnaire_enabled', slug=card.slug) }}">
-              <input type="hidden" name="enabled" value="0">
-              <button class="inline-flex items-center justify-center rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" type="submit">Turn off</button>
-            </form>
-          </div>
-        </li>
-      {% endfor %}
-    </ul>
-  {% elif not disabled_cards %}
-    <p class="mt-6 rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-10 text-center text-stone-500">No questionnaires yet. Add a folder in <code>questionnaires</code> with <code>config.json</code> and <code>instructions.md</code>.</p>
-  {% else %}
-    <p class="mt-6 rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-10 text-center text-stone-500">No questionnaires are turned on.</p>
-  {% endif %}
-  {% if disabled_cards %}
-    <section class="mt-8 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-      <h2 class="text-lg font-semibold tracking-tight text-stone-900">Turned off</h2>
-      <p class="mt-2 text-sm leading-6 text-stone-600">These are hidden from the list above. The reply link does not open until you turn one back on.</p>
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <h1 class="text-2xl font-semibold tracking-tight text-stone-900">Questionnaires</h1>
+    <a class="text-sm font-medium text-brand-deep hover:text-brand-deeper" href="{{ url_for('archive') }}">Archive</a>
+  </div>
+  {% if active_cards %}
+    <section id="active" class="mt-8">
+      <h2 class="text-lg font-semibold tracking-tight text-stone-900">Active</h2>
+      <p class="mt-2 text-sm leading-6 text-stone-600">These are on the people portal now.</p>
       <ul class="mt-4 space-y-4">
-        {% for card in disabled_cards %}
-          <li class="rounded-xl border border-stone-200 bg-stone-50 p-4">
-            <h2 class="text-base font-semibold tracking-tight text-stone-900">{{ card.title }}</h2>
-            {% with deadline=card.deadline, deadline_label=card.deadline_label, overdue=card.deadline_overdue %}{% include "deadline.html" %}{% endwith %}
-            {% with start=card.start, start_label=card.start_label, started=card.started %}{% include "start.html" %}{% endwith %}
-            {% if card.progress %}
-              {% set total = card.progress.expected %}
-              {% set done = card.progress.replied %}
-              {% set pct = (done * 100 / total) if total else 0 %}
-              <div class="mt-3">
-                <p class="text-sm text-stone-500">{{ done }} of {{ total }} replied</p>
-                <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-200" role="progressbar" aria-valuenow="{{ done }}" aria-valuemin="0" aria-valuemax="{{ total }}">
-                  <div class="h-full rounded-full bg-brand" style="width: {{ pct|round(1) }}%"></div>
-                </div>
-              </div>
-            {% else %}
-              <p class="mt-2 text-sm text-stone-500">No expected email list</p>
-            {% endif %}
-            <div class="mt-4 flex flex-wrap items-center gap-3">
-              <form method="post" action="{{ url_for('update_questionnaire_enabled', slug=card.slug) }}">
-                <input type="hidden" name="enabled" value="1">
-                <button class="inline-flex items-center justify-center rounded-md bg-brand px-4 py-2 text-sm font-medium text-brand-ink hover:bg-brand-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" type="submit">Turn on</button>
-              </form>
-              <a class="inline-flex items-center justify-center rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 no-underline hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" href="{{ card.review_link }}">Review responses</a>
-            </div>
-          </li>
+        {% for card in active_cards %}
+          {% with planned=false %}{% include "admin_live_card.html" %}{% endwith %}
         {% endfor %}
       </ul>
     </section>
   {% endif %}
+  {% if planned_cards %}
+    <section id="planned" class="mt-8">
+      <h2 class="text-lg font-semibold tracking-tight text-stone-900">Planned</h2>
+      <p class="mt-2 text-sm leading-6 text-stone-600">These stay off the people portal until the time shown on each one.</p>
+      <ul class="mt-4 space-y-4">
+        {% for card in planned_cards %}
+          {% with planned=true %}{% include "admin_live_card.html" %}{% endwith %}
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+  {% if not active_cards and not planned_cards %}
+    {% if any_questionnaires %}
+      <p class="mt-6 rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-10 text-center text-stone-500">No questionnaires are turned on.</p>
+    {% else %}
+      <p class="mt-6 rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-10 text-center text-stone-500">No questionnaires yet. Add a folder in <code>questionnaires</code> with <code>config.json</code> and <code>instructions.md</code>.</p>
+    {% endif %}
+  {% endif %}
   <section class="mt-8 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
     <h2 class="text-lg font-semibold tracking-tight text-stone-900">Add a questionnaire</h2>
-    <p class="mt-2 text-sm leading-6 text-stone-600">Create a folder using letters, numbers, and hyphens. Put <code>config.json</code> and <code>instructions.md</code> inside it. A questionnaire is on unless <code>config.json</code> contains <code>"enabled": false</code>. Set <code>start</code> to the date it should appear on the people portal, <code>YYYY-MM-DD</code> or <code>YYYY-MM-DDTHH:MM</code>. Omit it to show the questionnaire as soon as it is turned on. It stays visible until you turn it off. Set <code>label</code> to the short name shown next to the logo, such as Status update, Survey, Feedback, or Acknowledgement. Omit it to show Responses. Add <code>respondents.txt</code> with one email per line for the replied / waiting list. While the questionnaire is open, only those addresses can see it.</p>
+    <p class="mt-2 text-sm leading-6 text-stone-600">Create a folder using letters, numbers, and hyphens. Put <code>config.json</code> and <code>instructions.md</code> inside it. A questionnaire is on unless <code>config.json</code> contains <code>"enabled": false</code>. Set <code>start</code> to the date it should appear on the people portal, <code>YYYY-MM-DD</code> or <code>YYYY-MM-DDTHH:MM</code>. Omit it to show the questionnaire under Active as soon as it is turned on. A future start keeps it under Planned, with the time it becomes active, until then. It stays visible until you turn it off. Turned-off questionnaires are listed on the Archive page. Set <code>label</code> to the short name shown next to the logo, such as Status update, Survey, Feedback, or Acknowledgement. Omit it to show Responses. Add <code>respondents.txt</code> with one email per line for the replied / waiting list. While the questionnaire is open, only those addresses can see it.</p>
   </section>
 {% endblock %}
