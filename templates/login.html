@@ -3,7 +3,7 @@
 {% block content %}
   <article class="mx-auto max-w-md rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
     <h1 class="text-2xl font-semibold tracking-tight text-stone-900">Sign in</h1>
-    <p class="mt-2 text-sm leading-6 text-stone-600">Only people listed in <code>allowed.txt</code> can sign in. The first time, use the shared starter password from <code>auth.json</code>, then choose a password for your email.</p>
+    <p class="mt-2 text-sm leading-6 text-stone-600">Sign in with the email you were given. The first time, use the shared starter password, then choose a password of your own. After that, use the password you chose.</p>
     <form method="post" action="{{ url_for('login') }}">
       {% if errors %}
         <div class="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
