@@ -1,6 +1,6 @@
 All team members using an Arm Windows 365 (W365) Cloud PC must verify their Windows version and complete the mandatory upgrade if required.
 
-## 1. Verify your Windows version
+## 1. Verify your Windows versions
 
 Log in to your Arm W365 Cloud PC.
 
