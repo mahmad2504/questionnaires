@@ -7,7 +7,13 @@
     <ul class="mt-6 space-y-4">
       {% for card in cards %}
         <li class="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-          <h2 class="text-lg font-semibold tracking-tight text-stone-900">{{ card.title }}</h2>
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <h2 class="text-lg font-semibold tracking-tight text-stone-900">{{ card.title }}</h2>
+            {% with status=card.status %}{% include "status_badge.html" %}{% endwith %}
+          </div>
+          {% if card.submitted_at %}
+            <p class="mt-2 text-sm text-stone-500">Saved <time datetime="{{ card.submitted_at }}">{{ card.submitted_at.replace("T", " ") }}</time></p>
+          {% endif %}
           {% if card.closed %}
             <p class="mt-2 text-sm text-stone-500">Closed. You can still read your saved response.</p>
           {% endif %}

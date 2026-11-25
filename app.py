@@ -32,6 +32,7 @@ MIN_PASSWORD_LENGTH = 8
 _store_lock = threading.RLock()
 
 DEFAULT_STATUSES = ["Done", "In progress", "Blocked"]
+DONE_STATUSES = {"done", "completed"}
 DEFAULT_LABEL = "Responses"
 IMAGE_UPLOADS_ENABLED = False
 MAX_FILES = 8
@@ -581,9 +582,7 @@ def validate_submission(questionnaire: dict, form, email: str, name: str) -> tup
         errors.append("Sign in again before submitting.")
     if status not in questionnaire["statuses"]:
         errors.append("Choose a status.")
-    if not update:
-        errors.append("Enter your update.")
-    elif len(update) > 20000:
+    if len(update) > 20000:
         errors.append("Update must be 20,000 characters or fewer.")
     if errors:
         return None, errors
@@ -632,6 +631,10 @@ def save_submission(slug: str, fields: dict, uploads: list[tuple[str, bytes]]) -
         json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
+
+
+def status_is_done(status: str) -> bool:
+    return status.casefold() in DONE_STATUSES
 
 
 def person_summary(email: str, matches: list[dict]) -> dict:
@@ -957,6 +960,7 @@ def home():
         elif not own_replies:
             continue
         slug = questionnaire["slug"]
+        latest = own_replies[0] if own_replies else None
         cards.append(
             {
                 "title": questionnaire["title"],
@@ -965,8 +969,11 @@ def home():
                 "view_link": url_for("own_responses", slug=slug),
                 "has_reply": bool(own_replies),
                 "closed": not questionnaire["enabled"],
+                "status": latest["status"] if latest else "Not submitted",
+                "submitted_at": latest["submitted_at"] if latest else "",
             }
         )
+    cards.sort(key=lambda card: status_is_done(card["status"]))
     return render_template("home.html", cards=cards)
 
 
@@ -1012,7 +1019,9 @@ def questionnaire(slug: str):
     errors: list[str] = []
     name = signed_in_name()
     signer = {"name": name, "email": email}
-    values = {"status": "", "update": "", "links": [""]}
+    own_replies = responses_for_email(slug, email)
+    saved = own_replies[0] if own_replies else None
+    values = {"status": saved["status"] if saved else "", "update": "", "links": [""]}
     if request.method == "POST":
         submitted_links = request.form.getlist("links")
         values = {
@@ -1044,6 +1053,7 @@ def questionnaire(slug: str):
         errors=errors,
         values=values,
         signer=signer,
+        saved=saved,
         image_uploads_enabled=IMAGE_UPLOADS_ENABLED,
     )
 

@@ -1,8 +1,11 @@
+{% set key = (status or "")|lower %}
 {% set badge = {
-  "Done": "bg-emerald-50 text-emerald-800",
-  "Replied": "bg-emerald-50 text-emerald-800",
-  "In progress": "bg-amber-50 text-amber-800",
-  "Blocked": "bg-red-50 text-red-800",
-  "Waiting": "bg-stone-100 text-stone-600"
+  "done": "bg-emerald-50 text-emerald-800",
+  "completed": "bg-emerald-50 text-emerald-800",
+  "replied": "bg-emerald-50 text-emerald-800",
+  "in progress": "bg-amber-50 text-amber-800",
+  "blocked": "bg-red-50 text-red-800",
+  "waiting": "bg-stone-100 text-stone-600",
+  "not submitted": "bg-stone-100 text-stone-600"
 } %}
-<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ badge.get(status, 'bg-stone-100 text-stone-600') }}">{{ status }}</span>
+<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ badge.get(key, 'bg-stone-100 text-stone-600') }}">{{ status }}</span>

@@ -2,3 +2,33 @@
 # Only these people can sign in.
 # Blank lines and lines starting with # are ignored.
 Mumtaz Ahmad <mumtaz.ahmad@logicsilicon.com>
+Abdul Waheed Bhatti <waheed@logicsilicon.com>
+Abdullah Ijaz <abdullah@logicsilicon.com>
+Ali Raza <ali.raza@logicsilicon.com>
+Ali Rehan <ali.rehan@logicsilicon.com>
+Asad Asif <asad.asif@logicsilicon.com>
+Daniyal Ali <daniyal@logicsilicon.com>
+Hifza Hussain <hifza@logicsilicon.com>
+Jawad Khan <jawad.khan@logicsilicon.com>
+Maarij Raheem <maarij@logicsilicon.com>
+Mashood Ul Hasan <mashood@logicsilicon.com>
+Mehboob Khaliq <mehboob.khaliq@logicsilicon.com>
+Muhammad Azeem Ghauri <azeem@logicsilicon.com>
+Muhammad Rashid <rashid@logicsilicon.com>
+Muhammad Saqib <saqib@logicsilicon.com>
+Muhammad Shayan <shayan@logicsilicon.com>
+Umer Naseer <umer.naseer@logicsilicon.com>
+Waleed Jalil <waleed.jalil@logicsilicon.com>
+Natasha Kamal <natasha.kamal@logicsilicon.com>
+Obaid Khalid <obaid@logicsilicon.com>
+Qamar Raza <qamar.raza@logicsilicon.com>
+Rabeea Shahid <rabeea@logicsilicon.com>
+Saad Khan <saad.khan@logicsilicon.com>
+Shahid Hussain <shahid@logicsilicon.com>
+Sohaib Hussain <sohaib.hussain@logicsilicon.com>
+Arif Hashmi <arif.hashmi@logicsilicon.com>
+Zarish Saif <zarish.saif@logicsilicon.com>
+Shaheer Sajid <shaheer@logicsilicon.com>
+Ahmed Zaib <ahmed.zaib@logicsilicon.com>
+Ayesha Gauhar <ayesha.gauhar@logicsilicon.com>
+Ali Ashraf <ali.ashraf@logicsilicon.com>
