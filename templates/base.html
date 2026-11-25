@@ -3,13 +3,31 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Questionnaires{% endblock %}</title>
+  <title>{% block title %}Questionnaires{% endblock %} · Logic Silicon</title>
+  <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <style type="text/tailwindcss">
     @theme {
-      --color-teal-700: #147068;
-      --color-teal-800: #0f5c56;
-      --color-teal-900: #0a433e;
+      --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+      --color-brand: #79aa3b;
+      --color-brand-hover: #6a9634;
+      --color-brand-ink: #0b0c07;
+      --color-brand-deep: #3f5c16;
+      --color-brand-deeper: #2c4210;
+      --color-brand-soft: #eef4e2;
+      --color-stone-50: #f8f9f5;
+      --color-stone-100: #eeefeb;
+      --color-stone-200: #d6d8d1;
+      --color-stone-300: #c5c8c0;
+      --color-stone-400: #9a9c96;
+      --color-stone-500: #62645e;
+      --color-stone-600: #4e504b;
+      --color-stone-700: #3a3c37;
+      --color-stone-800: #21221d;
+      --color-stone-900: #151712;
     }
     code {
       @apply rounded bg-stone-100 px-1.5 py-0.5 font-mono text-[0.9em] text-stone-800;
@@ -32,7 +50,7 @@
       @apply mb-3 list-decimal space-y-1 pl-5 text-stone-700;
     }
     .instructions a {
-      @apply font-medium text-teal-800 underline;
+      @apply font-medium text-brand-deep underline;
     }
     .instructions :last-child {
       margin-bottom: 0;
@@ -41,24 +59,27 @@
 </head>
 <body class="min-h-screen bg-stone-50 font-sans text-stone-900 antialiased">
   <header class="sticky top-0 z-10 border-b border-stone-200 bg-white/90 backdrop-blur">
-    <div class="mx-auto flex w-full {{ self.main_width() }} flex-col gap-3 px-4 py-3.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-6">
-      {% if request.endpoint in ["questionnaire", "thanks", "own_responses"] %}
-        <span class="text-base font-semibold tracking-tight text-stone-900">Status update</span>
-      {% elif request.endpoint in ["login", "set_password"] %}
-        <span class="text-base font-semibold tracking-tight text-stone-900">Questionnaires</span>
-      {% elif request.path.startswith("/admin") %}
-        <a class="text-base font-semibold tracking-tight text-stone-900" href="{{ url_for('admin') }}">Questionnaires</a>
-      {% else %}
-        <a class="text-base font-semibold tracking-tight text-stone-900" href="{{ url_for('home') }}">Questionnaires</a>
-      {% endif %}
+    <div class="mx-auto flex w-full {{ self.main_width() }} flex-col gap-3 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-6">
+      <div class="flex min-w-0 items-center gap-3">
+        {% if request.endpoint in ["questionnaire", "thanks", "own_responses"] and questionnaire is defined %}
+          <img class="h-9 w-auto" src="{{ url_for('static', filename='logo.png') }}" alt="Logic Silicon">
+          <span class="text-sm font-medium text-stone-500">{{ questionnaire.label }}</span>
+        {% elif request.endpoint in ["login", "set_password"] %}
+          <img class="h-9 w-auto" src="{{ url_for('static', filename='logo.png') }}" alt="Logic Silicon">
+        {% elif request.path.startswith("/admin") %}
+          <a href="{{ url_for('admin') }}"><img class="h-9 w-auto" src="{{ url_for('static', filename='logo.png') }}" alt="Logic Silicon"></a>
+        {% else %}
+          <a href="{{ url_for('home') }}"><img class="h-9 w-auto" src="{{ url_for('static', filename='logo.png') }}" alt="Logic Silicon"></a>
+        {% endif %}
+      </div>
       {% if session.get("email") %}
         <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-stone-600 sm:ml-auto">
           {% if is_admin %}
-            <a class="font-medium text-teal-800 hover:text-teal-900" href="{{ url_for('admin') }}">Admin</a>
+            <a class="font-medium text-brand-deep hover:text-brand-deeper" href="{{ url_for('admin') }}">Admin</a>
           {% endif %}
           <span class="text-stone-500">{{ signed_in_name or session.get("email") }}</span>
           <form method="post" action="{{ url_for('logout') }}">
-            <button type="submit" class="rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2">Sign out</button>
+            <button type="submit" class="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2">Sign out</button>
           </form>
         </div>
       {% endif %}
@@ -67,6 +88,13 @@
   <main class="mx-auto w-full {% block main_width %}max-w-3xl{% endblock %} px-4 py-10 sm:px-6">
     {% block content %}{% endblock %}
   </main>
+  <footer class="mx-auto w-full {{ self.main_width() }} px-4 pb-8 text-xs text-stone-500 sm:px-6">
+    <p>© 2026 Logic Silicon. All rights reserved.</p>
+    <p class="mt-2 inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-2.5 py-1 text-brand-deep">
+      <span class="text-brand" aria-hidden="true">✦</span>
+      This form portal was created using AI. All responses are written and reviewed by humans.
+    </p>
+  </footer>
   <script>
     document.querySelectorAll("[data-copy]").forEach(function (button) {
       button.addEventListener("click", function () {

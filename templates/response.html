@@ -2,7 +2,7 @@
 {% block title %}{{ reply.name or reply.email }} — {{ questionnaire.title }}{% endblock %}
 {% block content %}
   <p>
-    <a class="text-sm font-medium text-teal-800 hover:text-teal-900" href="{{ url_for('review', slug=questionnaire.slug) }}">Back to responses</a>
+    <a class="text-sm font-medium text-brand-deep hover:text-brand-deeper" href="{{ url_for('review', slug=questionnaire.slug) }}">Back to responses</a>
   </p>
   <h1 class="mt-3 text-2xl font-semibold tracking-tight text-stone-900">{{ questionnaire.title }}</h1>
   {% if is_latest %}
@@ -21,7 +21,7 @@
             </div>
             <div class="flex shrink-0 items-center gap-3">
               {% with status=item.status %}{% include "status_badge.html" %}{% endwith %}
-              <a class="inline-flex items-center justify-center rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 no-underline hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2" href="{{ url_for('response_detail', slug=questionnaire.slug, folder=item.folder) }}">View</a>
+              <a class="inline-flex items-center justify-center rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 no-underline hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" href="{{ url_for('response_detail', slug=questionnaire.slug, folder=item.folder) }}">View</a>
             </div>
           </li>
         {% endfor %}

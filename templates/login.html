@@ -16,12 +16,12 @@
       {% endif %}
       <input type="hidden" name="next" value="{{ next_url }}">
       <label class="mt-5 block text-sm font-medium text-stone-700" for="email">Email</label>
-      <input class="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-stone-900 shadow-sm outline-none focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20" id="email" name="email" type="email" required maxlength="200" value="{{ email }}" autocomplete="username">
+      <input class="mt-1.5 w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-stone-900 shadow-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/30" id="email" name="email" type="email" required maxlength="200" value="{{ email }}" autocomplete="username">
 
       <label class="mt-5 block text-sm font-medium text-stone-700" for="password">Password</label>
-      <input class="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-stone-900 shadow-sm outline-none focus:border-teal-700 focus:ring-2 focus:ring-teal-700/20" id="password" name="password" type="password" required autocomplete="current-password">
+      <input class="mt-1.5 w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-stone-900 shadow-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/30" id="password" name="password" type="password" required autocomplete="current-password">
 
-      <button class="mt-6 inline-flex items-center justify-center rounded-lg bg-teal-800 px-4 py-2 text-sm font-medium text-white hover:bg-teal-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2" type="submit">Sign in</button>
+      <button class="mt-6 inline-flex items-center justify-center rounded-md bg-brand px-4 py-2 text-sm font-medium text-brand-ink hover:bg-brand-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" type="submit">Sign in</button>
     </form>
   </article>
 {% endblock %}

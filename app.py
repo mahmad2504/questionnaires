@@ -32,6 +32,7 @@ MIN_PASSWORD_LENGTH = 8
 _store_lock = threading.RLock()
 
 DEFAULT_STATUSES = ["Done", "In progress", "Blocked"]
+DEFAULT_LABEL = "Responses"
 IMAGE_UPLOADS_ENABLED = False
 MAX_FILES = 8
 MAX_FILE_BYTES = 8 * 1024 * 1024
@@ -379,9 +380,12 @@ def load_questionnaire(slug: str) -> dict | None:
         return None
     enabled_value = config.get("enabled", True)
     enabled = enabled_value if isinstance(enabled_value, bool) else True
+    label_value = config.get("label", DEFAULT_LABEL)
+    label = label_value.strip() if isinstance(label_value, str) and label_value.strip() else DEFAULT_LABEL
     return {
         "slug": slug,
         "title": title.strip(),
+        "label": label,
         "statuses": [item.strip() for item in statuses],
         "instructions": render_instructions(instructions),
         "respondents": load_respondents(folder / "respondents.txt"),

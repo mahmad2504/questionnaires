@@ -9,7 +9,7 @@
   {% if reply.links %}
     <ul class="mt-3 space-y-1">
       {% for link in reply.links %}
-        <li><a class="break-all text-sm font-medium text-teal-800 hover:text-teal-900" href="{{ link }}" target="_blank" rel="noopener noreferrer">{{ link }}</a></li>
+        <li><a class="break-all text-sm font-medium text-brand-deep hover:text-brand-deeper" href="{{ link }}" target="_blank" rel="noopener noreferrer">{{ link }}</a></li>
       {% endfor %}
     </ul>
   {% endif %}
@@ -17,7 +17,7 @@
     <div class="mt-3 flex flex-wrap gap-3">
       {% for shot in reply.screenshots %}
         <a href="{{ url_for(screenshot_endpoint, slug=questionnaire.slug, folder=reply.folder, filename=shot) }}">
-          <img class="block h-auto max-w-full rounded-lg border border-stone-200 bg-white sm:max-w-[280px]" src="{{ url_for(screenshot_endpoint, slug=questionnaire.slug, folder=reply.folder, filename=shot) }}" alt="Screenshot from {{ reply.name }}">
+          <img class="block h-auto max-w-full rounded-md border border-stone-200 bg-white sm:max-w-[280px]" src="{{ url_for(screenshot_endpoint, slug=questionnaire.slug, folder=reply.folder, filename=shot) }}" alt="Screenshot from {{ reply.name }}">
         </a>
       {% endfor %}
     </div>
