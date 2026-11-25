@@ -172,7 +172,8 @@ try:
     assert "Opens later" not in active_part
     assert "Default on" in active_part
     assert "Opens later" in planned_part
-    assert "Becomes active" in planned_part
+    assert "Starts" in planned_part
+    assert "Not on the people portal yet." in planned_part
     assert "1 Jan 2099" in planned_part
     home_later = client.get("/").get_data(as_text=True)
     assert "Opens later" not in home_later

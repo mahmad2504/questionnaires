@@ -11,7 +11,7 @@
       <p class="mt-2 text-sm leading-6 text-stone-600">These are on the people portal now.</p>
       <ul class="mt-4 space-y-4">
         {% for card in active_cards %}
-          {% with planned=false %}{% include "admin_live_card.html" %}{% endwith %}
+          {% include "admin_live_card.html" %}
         {% endfor %}
       </ul>
     </section>
@@ -22,7 +22,7 @@
       <p class="mt-2 text-sm leading-6 text-stone-600">These stay off the people portal until the time shown on each one.</p>
       <ul class="mt-4 space-y-4">
         {% for card in planned_cards %}
-          {% with planned=true %}{% include "admin_live_card.html" %}{% endwith %}
+          {% include "admin_live_card.html" %}
         {% endfor %}
       </ul>
     </section>

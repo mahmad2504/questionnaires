@@ -1,0 +1,14 @@
+{% if start or deadline %}
+  <p class="mt-2 text-sm text-stone-500">
+    {%- if start %}Starts <time datetime="{{ start }}">{{ start_label }}</time>{% endif -%}
+    {%- if start and deadline %} – {% endif -%}
+    {%- if deadline -%}
+      {%- if overdue %}<span class="text-red-700">{% endif -%}
+      Due <time datetime="{{ deadline }}">{{ deadline_label }}</time>
+      {%- if overdue %}</span>{% endif -%}
+    {%- endif -%}
+  </p>
+{% endif %}
+{% if start and not started %}
+  <p class="mt-2 text-sm text-stone-500">Not on the people portal yet.</p>
+{% endif %}

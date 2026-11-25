@@ -10,10 +10,13 @@
           <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
             <h2 class="text-lg font-semibold tracking-tight text-stone-900">{{ card.title }}</h2>
             {% with status=card.status %}{% include "status_badge.html" %}{% endwith %}
+            {% if card.submitted_at %}
+              <time class="text-[11px] leading-4 text-stone-500" datetime="{{ card.submitted_at }}">Updated {{ card.saved_label }}</time>
+            {% endif %}
           </div>
-          {% with deadline=card.deadline, deadline_label=card.deadline_label, overdue=card.deadline_overdue %}{% include "deadline.html" %}{% endwith %}
-          {% if card.submitted_at %}
-            <p class="mt-2 text-sm text-stone-500">Saved <time datetime="{{ card.submitted_at }}">{{ card.submitted_at.replace("T", " ") }}</time></p>
+          {% with start=card.start, start_label=card.start_label, started=card.started, deadline=card.deadline, deadline_label=card.deadline_label, overdue=card.deadline_overdue %}{% include "schedule.html" %}{% endwith %}
+          {% if card.progress %}
+            {% with progress=card.progress %}{% include "progress.html" %}{% endwith %}
           {% endif %}
           <div class="mt-4 flex flex-wrap items-center gap-3">
             <a class="inline-flex items-center justify-center rounded-md bg-brand px-4 py-2 text-sm font-medium text-brand-ink no-underline hover:bg-brand-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" href="{{ card.link }}">Open</a>

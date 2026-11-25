@@ -111,14 +111,14 @@ Markdown shown at the top of the form, above the questions. Headings, paragraphs
 
 ### respondents.txt
 
-One email per line. This is the list of people you expect a reply from. While the questionnaire is open, only these addresses can see it, and the admin page shows how many of them have replied.
+One email per line. This is the list of people you expect a reply from. While the questionnaire is open, only these addresses can see it. The people portal and the admin pages show how many of them are completed, a count for each other status, and how many have not submitted. The bar is the completed share of that list.
 
 ```text
 ada@example.com
 grace@example.com
 ```
 
-If this file is missing, anyone in `allowed.txt` can open the questionnaire, and the admin page does not show a replied count.
+If this file is missing, anyone in `allowed.txt` can open the questionnaire, and those pages do not show these counts.
 
 ### Turn a questionnaire on or off
 

@@ -382,6 +382,22 @@ _MONTHS = (
 )
 
 
+def format_saved_at(value: str) -> str:
+    text = (value or "").strip()
+    if not text:
+        return ""
+    try:
+        moment = datetime.fromisoformat(text)
+    except ValueError:
+        return text.replace("T", " ")
+    hour = moment.hour % 12 or 12
+    period = "AM" if moment.hour < 12 else "PM"
+    return (
+        f"{moment.day} {_MONTHS[moment.month - 1]} {moment.year} "
+        f"at {hour}:{moment.minute:02d} {period}"
+    )
+
+
 def parse_moment(value) -> tuple[datetime, str, str] | None:
     if not isinstance(value, str):
         return None
@@ -560,8 +576,43 @@ def reply_progress(questionnaire: dict, replies: list[dict]) -> dict | None:
     if respondents is None:
         return None
     grouped = group_responses(replies)
-    replied = sum(1 for email in respondents if normalize_email(email) in grouped)
-    return {"replied": replied, "expected": len(respondents)}
+    completed = 0
+    waiting = 0
+    statuses: list[dict] = []
+    by_key: dict[str, dict] = {}
+
+    def bucket(label: str) -> dict:
+        key = label.casefold()
+        item = by_key.get(key)
+        if item is None:
+            item = {"label": label, "count": 0}
+            by_key[key] = item
+            statuses.append(item)
+        return item
+
+    for status in questionnaire["statuses"]:
+        label = status.strip()
+        if label and not status_is_done(label):
+            bucket(label)
+    for email in respondents:
+        matches = grouped.get(normalize_email(email))
+        if not matches:
+            waiting += 1
+            continue
+        label = matches[0]["status"].strip()
+        if status_is_done(label):
+            completed += 1
+            continue
+        if not label:
+            waiting += 1
+            continue
+        bucket(label)["count"] += 1
+    return {
+        "completed": completed,
+        "expected": len(respondents),
+        "statuses": statuses,
+        "waiting": waiting,
+    }
 
 
 def sanitize_name(name: str) -> str:
@@ -1087,8 +1138,14 @@ def home():
             continue
         if not email_on_respondent_list(questionnaire, email):
             continue
-        own_replies = responses_for_email(questionnaire["slug"], email)
         slug = questionnaire["slug"]
+        replies = load_responses(slug)
+        key = normalize_email(email)
+        own_replies = [
+            reply
+            for reply in replies
+            if key and normalize_email(reply["email"]) == key
+        ]
         latest = own_replies[0] if own_replies else None
         cards.append(
             {
@@ -1099,9 +1156,14 @@ def home():
                 "has_reply": bool(own_replies),
                 "status": latest["status"] if latest else "Not submitted",
                 "submitted_at": latest["submitted_at"] if latest else "",
+                "saved_label": format_saved_at(latest["submitted_at"]) if latest else "",
                 "deadline": questionnaire["deadline"],
                 "deadline_label": questionnaire["deadline_label"],
                 "deadline_overdue": questionnaire["deadline_overdue"],
+                "start": questionnaire["start"],
+                "start_label": questionnaire["start_label"],
+                "started": questionnaire["started"],
+                "progress": reply_progress(questionnaire, replies),
             }
         )
     cards.sort(key=lambda card: status_is_done(card["status"]))
