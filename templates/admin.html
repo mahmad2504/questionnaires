@@ -8,6 +8,7 @@
         <li class="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
           <h2 class="text-lg font-semibold tracking-tight text-stone-900">{{ card.title }}</h2>
           {% with deadline=card.deadline, deadline_label=card.deadline_label, overdue=card.deadline_overdue %}{% include "deadline.html" %}{% endwith %}
+          {% with start=card.start, start_label=card.start_label, started=card.started %}{% include "start.html" %}{% endwith %}
           {% if card.progress %}
             {% set total = card.progress.expected %}
             {% set done = card.progress.replied %}
@@ -51,6 +52,7 @@
           <li class="rounded-xl border border-stone-200 bg-stone-50 p-4">
             <h2 class="text-base font-semibold tracking-tight text-stone-900">{{ card.title }}</h2>
             {% with deadline=card.deadline, deadline_label=card.deadline_label, overdue=card.deadline_overdue %}{% include "deadline.html" %}{% endwith %}
+            {% with start=card.start, start_label=card.start_label, started=card.started %}{% include "start.html" %}{% endwith %}
             {% if card.progress %}
               {% set total = card.progress.expected %}
               {% set done = card.progress.replied %}
@@ -78,6 +80,6 @@
   {% endif %}
   <section class="mt-8 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
     <h2 class="text-lg font-semibold tracking-tight text-stone-900">Add a questionnaire</h2>
-    <p class="mt-2 text-sm leading-6 text-stone-600">Create a folder using letters, numbers, and hyphens. Put <code>config.json</code> and <code>instructions.md</code> inside it. A questionnaire is on unless <code>config.json</code> contains <code>"enabled": false</code>. Set <code>label</code> to the short name shown next to the logo, such as Status update, Survey, Feedback, or Acknowledgement. Omit it to show Responses. Add <code>respondents.txt</code> with one email per line for the replied / waiting list. While the questionnaire is open, only those addresses can see it.</p>
+    <p class="mt-2 text-sm leading-6 text-stone-600">Create a folder using letters, numbers, and hyphens. Put <code>config.json</code> and <code>instructions.md</code> inside it. A questionnaire is on unless <code>config.json</code> contains <code>"enabled": false</code>. Set <code>start</code> to the date it should appear on the people portal, <code>YYYY-MM-DD</code> or <code>YYYY-MM-DDTHH:MM</code>. Omit it to show the questionnaire as soon as it is turned on. It stays visible until you turn it off. Set <code>label</code> to the short name shown next to the logo, such as Status update, Survey, Feedback, or Acknowledgement. Omit it to show Responses. Add <code>respondents.txt</code> with one email per line for the replied / waiting list. While the questionnaire is open, only those addresses can see it.</p>
   </section>
 {% endblock %}

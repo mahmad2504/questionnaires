@@ -1,0 +1,8 @@
+{
+  "title": "Windows 11 25H2 verification",
+  "label": "Upgrade status",
+  "statuses": ["Completed", "In progress", "Blocked"],
+  "start": "2026-11-25",
+  "deadline": "2026-11-30",
+  "enabled": true
+}

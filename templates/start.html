@@ -1,0 +1,6 @@
+{% if start %}
+<p class="mt-2 text-sm text-stone-500">Starts <time datetime="{{ start }}">{{ start_label }}</time></p>
+{% if not started %}
+<p class="mt-2 text-sm text-stone-500">Not on the people portal yet.</p>
+{% endif %}
+{% endif %}

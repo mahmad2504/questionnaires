@@ -88,6 +88,7 @@ A questionnaire needs two files. `respondents.txt` is optional.
   "title": "Release checklist",
   "label": "Status update",
   "statuses": ["Done", "In progress", "Blocked"],
+  "start": "2026-12-01",
   "deadline": "2026-12-01",
   "enabled": true
 }
@@ -98,6 +99,7 @@ A questionnaire needs two files. `respondents.txt` is optional.
 | `title` | Yes | Heading on the form and in the admin list. |
 | `statuses` | No | Choices on the form. If you omit it, the choices are Done, In progress, and Blocked. |
 | `label` | No | Short name next to the logo. If you omit it, the label is Responses. |
+| `start` | No | Date the questionnaire appears on the people portal, `YYYY-MM-DD`, or date and time, `YYYY-MM-DDTHH:MM`. Times are local. A date opens at the beginning of that day. If you omit it, or the value is not a valid date, the questionnaire is visible as soon as it is turned on. It stays on the people portal until an admin turns it off. |
 | `deadline` | No | Due date, `YYYY-MM-DD`, or date and time, `YYYY-MM-DDTHH:MM`. Times are local. A date is due through the end of that day. The due line is red after it has passed. If you omit it, or the value is not a valid date, no deadline is shown. |
 | `enabled` | No | `true` accepts replies. `false` closes the form. If you omit it, the questionnaire is open. |
 

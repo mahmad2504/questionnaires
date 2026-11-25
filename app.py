@@ -370,7 +370,7 @@ _MONTHS = (
 )
 
 
-def parse_deadline(value) -> dict | None:
+def parse_moment(value) -> tuple[datetime, str, str] | None:
     if not isinstance(value, str):
         return None
     text = value.strip()
@@ -379,12 +379,10 @@ def parse_deadline(value) -> dict | None:
     try:
         if len(text) == 10:
             moment = datetime.strptime(text, "%Y-%m-%d")
-            due_at = moment.replace(hour=23, minute=59, second=59)
             normalized = moment.date().isoformat()
             label = f"{moment.day} {_MONTHS[moment.month - 1]} {moment.year}"
         elif len(text) == 16:
             moment = datetime.strptime(text, "%Y-%m-%dT%H:%M")
-            due_at = moment
             normalized = moment.strftime("%Y-%m-%dT%H:%M")
             label = (
                 f"{moment.day} {_MONTHS[moment.month - 1]} {moment.year}, "
@@ -394,10 +392,31 @@ def parse_deadline(value) -> dict | None:
             return None
     except ValueError:
         return None
+    return moment, normalized, label
+
+
+def parse_deadline(value) -> dict | None:
+    parsed = parse_moment(value)
+    if parsed is None:
+        return None
+    moment, normalized, label = parsed
+    due_at = moment.replace(hour=23, minute=59, second=59) if len(normalized) == 10 else moment
     return {
         "deadline": normalized,
         "deadline_label": label,
         "deadline_overdue": datetime.now() > due_at,
+    }
+
+
+def parse_start(value) -> dict | None:
+    parsed = parse_moment(value)
+    if parsed is None:
+        return None
+    moment, normalized, label = parsed
+    return {
+        "start": normalized,
+        "start_label": label,
+        "started": datetime.now() >= moment,
     }
 
 
@@ -431,6 +450,7 @@ def load_questionnaire(slug: str) -> dict | None:
     label_value = config.get("label", DEFAULT_LABEL)
     label = label_value.strip() if isinstance(label_value, str) and label_value.strip() else DEFAULT_LABEL
     deadline = parse_deadline(config.get("deadline")) or {}
+    start = parse_start(config.get("start")) or {}
     return {
         "slug": slug,
         "title": title.strip(),
@@ -442,6 +462,9 @@ def load_questionnaire(slug: str) -> dict | None:
         "deadline": deadline.get("deadline", ""),
         "deadline_label": deadline.get("deadline_label", ""),
         "deadline_overdue": deadline.get("deadline_overdue", False),
+        "start": start.get("start", ""),
+        "start_label": start.get("start_label", ""),
+        "started": start.get("started", True),
     }
 
 
@@ -867,6 +890,12 @@ def questionnaire_closed():
     )
 
 
+def hide_until_started(questionnaire: dict) -> None:
+    email = signed_in_email() or ""
+    if not questionnaire["started"] and not email_is_admin(email):
+        abort(404)
+
+
 @app.context_processor
 def inject_admin():
     email = signed_in_email()
@@ -1004,6 +1033,8 @@ def home():
     email = signed_in_email() or ""
     cards = []
     for questionnaire in list_questionnaires():
+        if not questionnaire["started"]:
+            continue
         own_replies = responses_for_email(questionnaire["slug"], email)
         if questionnaire["enabled"]:
             if not email_on_respondent_list(questionnaire, email):
@@ -1046,6 +1077,9 @@ def admin():
             "deadline": questionnaire["deadline"],
             "deadline_label": questionnaire["deadline_label"],
             "deadline_overdue": questionnaire["deadline_overdue"],
+            "start": questionnaire["start"],
+            "start_label": questionnaire["start_label"],
+            "started": questionnaire["started"],
         }
         if questionnaire["enabled"]:
             cards.append(card)
@@ -1069,6 +1103,7 @@ def update_questionnaire_enabled(slug: str):
 def questionnaire(slug: str):
     questionnaire = require_questionnaire(slug)
     email = signed_in_email() or ""
+    hide_until_started(questionnaire)
     if questionnaire["enabled"] and not email_on_respondent_list(questionnaire, email):
         abort(404)
     if request.method == "POST" and not questionnaire["enabled"]:
@@ -1119,6 +1154,7 @@ def questionnaire(slug: str):
 def own_responses(slug: str):
     questionnaire = require_questionnaire(slug)
     email = signed_in_email() or ""
+    hide_until_started(questionnaire)
     if questionnaire["enabled"] and not email_on_respondent_list(questionnaire, email):
         abort(404)
     return render_template(
@@ -1133,6 +1169,7 @@ def own_responses(slug: str):
 def thanks(slug: str):
     questionnaire = require_questionnaire(slug)
     email = signed_in_email() or ""
+    hide_until_started(questionnaire)
     if questionnaire["enabled"] and not email_on_respondent_list(questionnaire, email):
         abort(404)
     if not questionnaire["enabled"]:
@@ -1198,6 +1235,7 @@ def own_screenshot(slug: str, folder: str, filename: str):
         or root is None
         or not SCREENSHOT_RE.fullmatch(filename)
         or (questionnaire["enabled"] and not email_on_respondent_list(questionnaire, email))
+        or (not questionnaire["started"] and not email_is_admin(email))
     ):
         abort(404)
     if folder in {"", ".", ".."} or "/" in folder or "\\" in folder:
