@@ -8,6 +8,7 @@
       {% for card in cards %}
         <li class="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
           <h2 class="text-lg font-semibold tracking-tight text-stone-900">{{ card.title }}</h2>
+          {% with deadline=card.deadline, deadline_label=card.deadline_label, overdue=card.deadline_overdue %}{% include "deadline.html" %}{% endwith %}
           {% if card.progress %}
             {% set total = card.progress.expected %}
             {% set done = card.progress.replied %}
@@ -50,6 +51,7 @@
         {% for card in disabled_cards %}
           <li class="rounded-xl border border-stone-200 bg-stone-50 p-4">
             <h2 class="text-base font-semibold tracking-tight text-stone-900">{{ card.title }}</h2>
+            {% with deadline=card.deadline, deadline_label=card.deadline_label, overdue=card.deadline_overdue %}{% include "deadline.html" %}{% endwith %}
             {% if card.progress %}
               {% set total = card.progress.expected %}
               {% set done = card.progress.replied %}

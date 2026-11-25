@@ -1,0 +1,3 @@
+{% if deadline %}
+<p class="mt-2 text-sm {{ 'text-red-700' if overdue else 'text-stone-500' }}">Due <time datetime="{{ deadline }}">{{ deadline_label }}</time></p>
+{% endif %}

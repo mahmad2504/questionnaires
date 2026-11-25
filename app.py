@@ -354,6 +354,53 @@ def email_on_respondent_list(questionnaire: dict, email: str) -> bool:
     return any(normalize_email(item) == key for item in respondents)
 
 
+_MONTHS = (
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+)
+
+
+def parse_deadline(value) -> dict | None:
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    if not text:
+        return None
+    try:
+        if len(text) == 10:
+            moment = datetime.strptime(text, "%Y-%m-%d")
+            due_at = moment.replace(hour=23, minute=59, second=59)
+            normalized = moment.date().isoformat()
+            label = f"{moment.day} {_MONTHS[moment.month - 1]} {moment.year}"
+        elif len(text) == 16:
+            moment = datetime.strptime(text, "%Y-%m-%dT%H:%M")
+            due_at = moment
+            normalized = moment.strftime("%Y-%m-%dT%H:%M")
+            label = (
+                f"{moment.day} {_MONTHS[moment.month - 1]} {moment.year}, "
+                f"{moment.hour:02d}:{moment.minute:02d}"
+            )
+        else:
+            return None
+    except ValueError:
+        return None
+    return {
+        "deadline": normalized,
+        "deadline_label": label,
+        "deadline_overdue": datetime.now() > due_at,
+    }
+
+
 def load_questionnaire(slug: str) -> dict | None:
     folder = slug_dir(QUESTIONNAIRES, slug)
     if folder is None or not folder.is_dir():
@@ -383,6 +430,7 @@ def load_questionnaire(slug: str) -> dict | None:
     enabled = enabled_value if isinstance(enabled_value, bool) else True
     label_value = config.get("label", DEFAULT_LABEL)
     label = label_value.strip() if isinstance(label_value, str) and label_value.strip() else DEFAULT_LABEL
+    deadline = parse_deadline(config.get("deadline")) or {}
     return {
         "slug": slug,
         "title": title.strip(),
@@ -391,6 +439,9 @@ def load_questionnaire(slug: str) -> dict | None:
         "instructions": render_instructions(instructions),
         "respondents": load_respondents(folder / "respondents.txt"),
         "enabled": enabled,
+        "deadline": deadline.get("deadline", ""),
+        "deadline_label": deadline.get("deadline_label", ""),
+        "deadline_overdue": deadline.get("deadline_overdue", False),
     }
 
 
@@ -971,6 +1022,9 @@ def home():
                 "closed": not questionnaire["enabled"],
                 "status": latest["status"] if latest else "Not submitted",
                 "submitted_at": latest["submitted_at"] if latest else "",
+                "deadline": questionnaire["deadline"],
+                "deadline_label": questionnaire["deadline_label"],
+                "deadline_overdue": questionnaire["deadline_overdue"],
             }
         )
     cards.sort(key=lambda card: status_is_done(card["status"]))
@@ -989,6 +1043,9 @@ def admin():
             "link": url_for("questionnaire", slug=questionnaire["slug"], _external=True),
             "review_link": url_for("review", slug=questionnaire["slug"]),
             "progress": reply_progress(questionnaire, replies),
+            "deadline": questionnaire["deadline"],
+            "deadline_label": questionnaire["deadline_label"],
+            "deadline_overdue": questionnaire["deadline_overdue"],
         }
         if questionnaire["enabled"]:
             cards.append(card)
