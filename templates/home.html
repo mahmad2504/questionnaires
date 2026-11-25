@@ -15,13 +15,8 @@
           {% if card.submitted_at %}
             <p class="mt-2 text-sm text-stone-500">Saved <time datetime="{{ card.submitted_at }}">{{ card.submitted_at.replace("T", " ") }}</time></p>
           {% endif %}
-          {% if card.closed %}
-            <p class="mt-2 text-sm text-stone-500">Closed. You can still read your saved response.</p>
-          {% endif %}
           <div class="mt-4 flex flex-wrap items-center gap-3">
-            {% if not card.closed %}
-              <a class="inline-flex items-center justify-center rounded-md bg-brand px-4 py-2 text-sm font-medium text-brand-ink no-underline hover:bg-brand-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" href="{{ card.link }}">Open</a>
-            {% endif %}
+            <a class="inline-flex items-center justify-center rounded-md bg-brand px-4 py-2 text-sm font-medium text-brand-ink no-underline hover:bg-brand-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" href="{{ card.link }}">Open</a>
             {% if card.has_reply %}
               <a class="inline-flex items-center justify-center rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 no-underline hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" href="{{ card.view_link }}">Your previous responses</a>
             {% endif %}

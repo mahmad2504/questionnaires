@@ -122,13 +122,15 @@ If this file is missing, anyone in `allowed.txt` can open the questionnaire, and
 
 ### Turn a questionnaire on or off
 
-Set `"enabled": false` in `config.json`, or sign in as an admin and use Turn off. A closed questionnaire leaves the admin list and is listed at [http://127.0.0.1:5000/admin/archive](http://127.0.0.1:5000/admin/archive). People who already replied can still read their saved response. They cannot send a new one until you turn it back on.
+Set `"enabled": false` in `config.json`, or sign in as an admin and use Turn off. A closed questionnaire leaves the admin list and the people portal, and is listed at [http://127.0.0.1:5000/admin/archive](http://127.0.0.1:5000/admin/archive). Saved replies stay in `responses/` and on the admin review page. People cannot send a new one until you turn it back on.
 
 Restart is not required after you add or edit a questionnaire. Refresh the page.
 
 ### Review
 
 On the admin page, Review responses opens the replies for that questionnaire. Download summary.csv on that page saves a spreadsheet of them. Each reply is also stored under `responses/<folder-name>/`.
+
+Record update on a person’s row files a new reply under their name and email. The reply shows that you recorded it, and summary.csv includes your email in `recorded_by`. Their earlier updates stay. You can record an update after the questionnaire is turned off.
 
 ## Files that stay on this machine
 

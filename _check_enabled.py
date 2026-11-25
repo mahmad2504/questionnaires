@@ -69,8 +69,8 @@ try:
 
     user_off = client.get("/")
     user_off_body = user_off.get_data(as_text=True)
-    assert "Release checklist" in user_off_body
-    assert "Closed. You can still read your saved response." in user_off_body
+    assert "Release checklist" not in user_off_body
+    assert "Closed. You can still read your saved response." not in user_off_body
 
     form = client.get(f"/q/{slug}")
     form_body = form.get_data(as_text=True)

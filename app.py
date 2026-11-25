@@ -273,6 +273,18 @@ def allowed_person(email: str) -> dict[str, str] | None:
     return load_allowed_people().get(normalize_email(email))
 
 
+def recorder_label(email: str) -> str:
+    if not isinstance(email, str):
+        return ""
+    text = email.strip()
+    if not text:
+        return ""
+    person = allowed_person(text)
+    if person and person["name"].strip():
+        return person["name"].strip()
+    return text
+
+
 def load_allowed_emails() -> set[str]:
     return set(load_allowed_people())
 
@@ -518,6 +530,7 @@ def load_responses(slug: str) -> list[dict]:
                 "folder": child.name,
                 "screenshots": screenshots,
                 "links": stored_links(data.get("links")),
+                "recorded_by": stored_recorder(data.get("recorded_by")),
             }
         )
     replies.sort(key=lambda item: item["submitted_at"], reverse=True)
@@ -601,6 +614,12 @@ def valid_link(value: str) -> str | None:
     return link
 
 
+def stored_recorder(raw) -> str:
+    if not isinstance(raw, str):
+        return ""
+    return raw.strip()
+
+
 def stored_links(raw) -> list[str]:
     if not isinstance(raw, list):
         return []
@@ -642,6 +661,9 @@ def read_links(form) -> tuple[list[str], str | None]:
     return links, None
 
 
+MISSING_NAME = "Your name is missing from the sign-in list."
+
+
 def validate_submission(questionnaire: dict, form, email: str, name: str) -> tuple[dict | None, list[str]]:
     name = name.strip()
     email = email.strip()
@@ -649,7 +671,7 @@ def validate_submission(questionnaire: dict, form, email: str, name: str) -> tup
     update = form.get("update", "").strip()
     errors = []
     if not name:
-        errors.append("Your name is missing from the sign-in list.")
+        errors.append(MISSING_NAME)
     elif len(name) > 200:
         errors.append("Name must be 200 characters or fewer.")
     if not email or len(email) > 200 or not EMAIL_RE.fullmatch(email):
@@ -701,6 +723,9 @@ def save_submission(slug: str, fields: dict, uploads: list[tuple[str, bytes]]) -
         "screenshots": names,
         "links": list(fields.get("links") or []),
     }
+    recorded_by = stored_recorder(fields.get("recorded_by"))
+    if recorded_by:
+        payload["recorded_by"] = recorded_by
     (target / "response.json").write_text(
         json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
@@ -783,6 +808,28 @@ def review_model(questionnaire: dict, replies: list[dict]) -> dict:
     }
 
 
+def review_person(questionnaire: dict, email: str) -> dict | None:
+    key = normalize_email(email)
+    if not key:
+        return None
+    model = review_model(questionnaire, load_responses(questionnaire["slug"]))
+    for row in model["rows"] + model["other_rows"]:
+        if normalize_email(row["email"]) == key:
+            return row
+    return None
+
+
+def person_display_name(email: str, latest: dict | None) -> str:
+    person = allowed_person(email)
+    if person and person["name"].strip():
+        return person["name"].strip()
+    if latest:
+        stored = str(latest.get("name") or "").strip()
+        if stored:
+            return stored
+    return ""
+
+
 def find_response(slug: str, folder: str) -> dict | None:
     if folder in {"", ".", ".."} or "/" in folder or "\\" in folder:
         return None
@@ -813,6 +860,7 @@ def summary_rows(questionnaire: dict, replies: list[dict]) -> list[dict]:
                 "folder": reply["folder"],
                 "screenshots": ";".join(reply["screenshots"]),
                 "links": ";".join(reply.get("links") or []),
+                "recorded_by": reply.get("recorded_by") or "",
             }
         )
 
@@ -829,6 +877,7 @@ def summary_rows(questionnaire: dict, replies: list[dict]) -> list[dict]:
                     "folder": "",
                     "screenshots": "",
                     "links": "",
+                    "recorded_by": "",
                 }
             )
         else:
@@ -845,7 +894,7 @@ def build_csv(questionnaire: dict, replies: list[dict]) -> bytes:
     buffer = io.StringIO()
     writer = csv.DictWriter(
         buffer,
-        fieldnames=["email", "name", "status", "update", "submitted_at", "folder", "screenshots", "links"],
+        fieldnames=["email", "name", "status", "update", "submitted_at", "folder", "screenshots", "links", "recorded_by"],
         lineterminator="\n",
     )
     writer.writeheader()
@@ -902,6 +951,7 @@ def inject_admin():
     return {
         "is_admin": bool(email and email_is_admin(email)),
         "signed_in_name": signed_in_name(),
+        "recorder_label": recorder_label,
     }
 
 
@@ -1033,14 +1083,11 @@ def home():
     email = signed_in_email() or ""
     cards = []
     for questionnaire in list_questionnaires():
-        if not questionnaire["started"]:
+        if not questionnaire["started"] or not questionnaire["enabled"]:
+            continue
+        if not email_on_respondent_list(questionnaire, email):
             continue
         own_replies = responses_for_email(questionnaire["slug"], email)
-        if questionnaire["enabled"]:
-            if not email_on_respondent_list(questionnaire, email):
-                continue
-        elif not own_replies:
-            continue
         slug = questionnaire["slug"]
         latest = own_replies[0] if own_replies else None
         cards.append(
@@ -1050,7 +1097,6 @@ def home():
                 "link": url_for("questionnaire", slug=slug),
                 "view_link": url_for("own_responses", slug=slug),
                 "has_reply": bool(own_replies),
-                "closed": not questionnaire["enabled"],
                 "status": latest["status"] if latest else "Not submitted",
                 "submitted_at": latest["submitted_at"] if latest else "",
                 "deadline": questionnaire["deadline"],
@@ -1209,6 +1255,66 @@ def review(slug: str):
         progress=reply_progress(questionnaire, replies),
         model=review_model(questionnaire, replies),
         team_link=url_for("questionnaire", slug=slug, _external=True),
+    )
+
+
+@app.route("/admin/q/<slug>/record", methods=["GET", "POST"])
+def record_response(slug: str):
+    questionnaire = require_questionnaire(slug)
+    raw_email = request.args.get("email", "")
+    if not isinstance(raw_email, str):
+        abort(404)
+    row = review_person(questionnaire, raw_email.strip())
+    if row is None:
+        abort(404)
+    admin_email = signed_in_email()
+    if not admin_email:
+        abort(404)
+    name = person_display_name(row["email"], row["latest"])
+    person = {"name": name, "email": row["email"]}
+    saved = row["latest"]
+    errors: list[str] = []
+    values = {"status": saved["status"] if saved else "", "update": "", "links": [""]}
+    if request.method == "POST":
+        submitted_links = request.form.getlist("links")
+        values = {
+            "status": request.form.get("status", ""),
+            "update": request.form.get("update", ""),
+            "links": submitted_links or [""],
+        }
+        fields, errors = validate_submission(questionnaire, request.form, row["email"], name)
+        if not name:
+            errors = [
+                "Add their name in allowed.txt before recording an update."
+                if item == MISSING_NAME
+                else item
+                for item in errors
+            ]
+        links, link_error = read_links(request.form)
+        if link_error:
+            errors.append(link_error)
+        uploads: list[tuple[str, bytes]] = []
+        if IMAGE_UPLOADS_ENABLED:
+            uploads, upload_error = read_uploads(request.files.getlist("screenshots"))
+            if upload_error:
+                errors.append(upload_error)
+        if fields and not errors:
+            fields["links"] = links
+            fields["recorded_by"] = admin_email
+            try:
+                save_submission(slug, fields, uploads)
+            except OSError:
+                errors.append("Could not save the response. Try again.")
+            else:
+                return redirect(url_for("review", slug=slug))
+    return render_template(
+        "record.html",
+        questionnaire=questionnaire,
+        errors=errors,
+        values=values,
+        person=person,
+        saved=saved,
+        image_uploads_enabled=IMAGE_UPLOADS_ENABLED,
     )
 
 

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Record update — {{ questionnaire.title }}{% endblock %}
+{% block content %}
+  <p>
+    <a class="text-sm font-medium text-brand-deep hover:text-brand-deeper" href="{{ url_for('review', slug=questionnaire.slug) }}">Back to responses</a>
+  </p>
+  <article class="mt-3 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+    <h1 class="text-2xl font-semibold tracking-tight text-stone-900">{{ questionnaire.title }}</h1>
+    <p class="mt-2 text-sm leading-6 text-stone-600">Record an update for this person. It is saved under their name and email, and shows that you recorded it. Earlier updates stay.</p>
+    <form class="mt-5" method="post" action="{{ url_for('record_response', slug=questionnaire.slug, email=person.email) }}" enctype="multipart/form-data">
+      {% if errors %}
+        <div class="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
+          <p>Fix the following and submit again.</p>
+          <ul class="mt-2 list-disc space-y-1 pl-5">
+            {% for error in errors %}
+              <li>{{ error }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+      <div class="mt-5 rounded-md border border-stone-200 bg-stone-50 px-4 py-3">
+        {% if person.name %}
+          <strong class="block text-sm font-semibold text-stone-900">{{ person.name }}</strong>
+        {% else %}
+          <strong class="block text-sm font-semibold text-stone-900">Name not set</strong>
+        {% endif %}
+        <span class="text-sm text-stone-500">{{ person.email }}</span>
+      </div>
+      {% if not person.name %}
+        <p class="mt-2 text-sm text-stone-500">Add their name in <code>allowed.txt</code> as <code>Name &lt;{{ person.email }}&gt;</code> before you can record an update.</p>
+      {% endif %}
+
+      {% if saved %}
+        <p class="mt-5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-stone-700">
+          <span>Their saved status is</span>
+          {% with status=saved.status %}{% include "status_badge.html" %}{% endwith %}
+          <time class="text-stone-500" datetime="{{ saved.submitted_at }}">{{ saved.submitted_at.replace("T", " ") }}</time>
+          {% if saved.recorded_by %}
+            <span class="text-stone-500">Recorded by {{ recorder_label(saved.recorded_by) }}</span>
+          {% endif %}
+        </p>
+      {% else %}
+        <p class="mt-5 text-sm text-stone-600">They have not submitted a status yet.</p>
+      {% endif %}
+
+      {% with can_submit=person.name, submit_label="Record update" %}
+        {% include "update_fields.html" %}
+      {% endwith %}
+    </form>
+    {% include "update_scripts.html" %}
+  </article>
+{% endblock %}
