@@ -333,6 +333,28 @@ def slug_dir(parent: Path, slug: str) -> Path | None:
     return path
 
 
+def wrap_instruction_steps(html: str) -> str:
+    pieces = re.split(r"(?i)(?=<h2>)", html)
+    if len(pieces) == 1:
+        return html
+    classes = {
+        1: "instruction-step-1",
+        2: "instruction-step-2",
+        3: "instruction-step-3",
+    }
+    wrapped = [pieces[0]]
+    for piece in pieces[1:]:
+        match = re.match(r"(?is)<h2>(.*?)</h2>", piece)
+        title = re.sub(r"<[^>]+>", "", match.group(1)) if match else ""
+        step = re.match(r"step\s+(\d+)\b", title.strip(), re.IGNORECASE)
+        if step is None:
+            wrapped.append(piece)
+            continue
+        tone = classes.get(int(step.group(1)), "instruction-step-3")
+        wrapped.append(f'<section class="instruction-step {tone}">{piece}</section>')
+    return "".join(wrapped)
+
+
 def render_instructions(text: str) -> Markup:
     safe = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     html = markdown.markdown(safe, extensions=["nl2br", "sane_lists"])
@@ -341,7 +363,7 @@ def render_instructions(text: str) -> Markup:
         r"\1=\2#",
         html,
     )
-    return Markup(html)
+    return Markup(wrap_instruction_steps(html))
 
 
 def load_respondents(path: Path) -> list[str] | None:
@@ -497,6 +519,9 @@ def load_questionnaire(slug: str) -> dict | None:
     services = parse_services(config.get("services"))
     if services is None:
         return None
+    service_results = parse_services(config.get("service_results"))
+    if service_results is None or (service_results and not services):
+        return None
     enabled_value = config.get("enabled", True)
     enabled = enabled_value if isinstance(enabled_value, bool) else True
     label_value = config.get("label", DEFAULT_LABEL)
@@ -509,6 +534,7 @@ def load_questionnaire(slug: str) -> dict | None:
         "label": label,
         "statuses": ensure_completed_status(statuses),
         "services": services,
+        "service_results": service_results,
         "instructions": render_instructions(instructions),
         "respondents": load_respondents(folder / "respondents.txt"),
         "enabled": enabled,
@@ -697,17 +723,20 @@ def stored_recorder(raw) -> str:
     return raw.strip()
 
 
-def stored_access(raw) -> dict[str, bool]:
+def stored_access(raw) -> dict[str, bool | str]:
     if not isinstance(raw, dict):
         return {}
-    access: dict[str, bool] = {}
+    access: dict[str, bool | str] = {}
     for key, value in raw.items():
-        if not isinstance(key, str) or not isinstance(value, bool):
+        if not isinstance(key, str):
             continue
         name = key.strip()
         if not name or name in access:
             continue
-        access[name] = value
+        if isinstance(value, bool):
+            access[name] = value
+        elif isinstance(value, str) and value.strip():
+            access[name] = value.strip()
     return access
 
 
@@ -725,12 +754,103 @@ def read_access(questionnaire: dict, form) -> dict[str, bool] | None:
     return {name: name in chosen for name in services}
 
 
+def saved_results(access) -> dict[str, str]:
+    if not isinstance(access, dict):
+        return {}
+    chosen: dict[str, str] = {}
+    for name, value in access.items():
+        if not isinstance(name, str) or not isinstance(value, str):
+            continue
+        label = name.strip()
+        result = value.strip()
+        if label and result and label not in chosen:
+            chosen[label] = result
+    return chosen
+
+
+def posted_results(questionnaire: dict, form) -> dict[str, str]:
+    services = questionnaire.get("services") or []
+    allowed = set(questionnaire.get("service_results") or [])
+    chosen: dict[str, str] = {}
+    for index, name in enumerate(services):
+        raw = form.get(f"result-{index}", "")
+        if not isinstance(raw, str):
+            continue
+        value = raw.strip()
+        if value in allowed:
+            chosen[name] = value
+    return chosen
+
+
+def read_service_results(questionnaire: dict, form) -> tuple[dict[str, str], list[str]]:
+    services = questionnaire.get("services") or []
+    allowed = set(questionnaire.get("service_results") or [])
+    status = form.get("status", "")
+    if not isinstance(status, str):
+        status = ""
+    require = status_is_done(status.strip())
+    chosen: dict[str, str] = {}
+    errors: list[str] = []
+    for index, name in enumerate(services):
+        raw = form.get(f"result-{index}", "")
+        value = raw.strip() if isinstance(raw, str) else ""
+        if value in allowed:
+            chosen[name] = value
+            continue
+        if require or value:
+            errors.append(f"Choose a result for {name}.")
+    return chosen, errors
+
+
+def submission_values(questionnaire: dict, saved: dict | None, form=None) -> dict:
+    if form is not None:
+        submitted_links = form.getlist("links")
+        return {
+            "status": form.get("status", ""),
+            "update": form.get("update", ""),
+            "links": submitted_links or [""],
+            "access": form.getlist("access"),
+            "results": posted_results(questionnaire, form),
+        }
+    access = saved.get("access") if saved else None
+    return {
+        "status": saved["status"] if saved else "",
+        "update": "",
+        "links": [""],
+        "access": checked_services(access),
+        "results": saved_results(access),
+    }
+
+
+def attach_access(questionnaire: dict, form, fields: dict) -> list[str]:
+    if questionnaire.get("service_results"):
+        results, errors = read_service_results(questionnaire, form)
+        if errors:
+            return errors
+        if results:
+            fields["access"] = results
+        return []
+    access = read_access(questionnaire, form)
+    if access is not None:
+        fields["access"] = access
+    return []
+
+
 def format_access(access: dict) -> str:
     if not access:
         return ""
-    return "; ".join(
-        f"{name}: {'yes' if allowed else 'no'}" for name, allowed in access.items()
-    )
+    parts = []
+    for name, value in access.items():
+        if value is True:
+            label = "yes"
+        elif value is False:
+            label = "no"
+        elif isinstance(value, str) and value.strip():
+            label = value.strip()
+        else:
+            continue
+        parts.append(f"{name}: {label}")
+    return "; ".join(parts)
 
 
 def stored_links(raw) -> list[str]:
@@ -1317,20 +1437,9 @@ def questionnaire(slug: str):
     signer = {"name": name, "email": email}
     own_replies = responses_for_email(slug, email)
     saved = own_replies[0] if own_replies else None
-    values = {
-        "status": saved["status"] if saved else "",
-        "update": "",
-        "links": [""],
-        "access": checked_services(saved.get("access") if saved else None),
-    }
+    values = submission_values(questionnaire, saved)
     if request.method == "POST":
-        submitted_links = request.form.getlist("links")
-        values = {
-            "status": request.form.get("status", ""),
-            "update": request.form.get("update", ""),
-            "links": submitted_links or [""],
-            "access": request.form.getlist("access"),
-        }
+        values = submission_values(questionnaire, saved, request.form)
         fields, errors = validate_submission(questionnaire, request.form, email, name)
         links, link_error = read_links(request.form)
         if link_error:
@@ -1340,11 +1449,9 @@ def questionnaire(slug: str):
             uploads, upload_error = read_uploads(request.files.getlist("screenshots"))
             if upload_error:
                 errors.append(upload_error)
+        errors.extend(attach_access(questionnaire, request.form, fields or {}))
         if fields and not errors:
             fields["links"] = links
-            access = read_access(questionnaire, request.form)
-            if access is not None:
-                fields["access"] = access
             try:
                 sync_account_name(email)
                 save_submission(slug, fields, uploads)
@@ -1419,20 +1526,9 @@ def record_response(slug: str):
     person = {"name": name, "email": row["email"]}
     saved = row["latest"]
     errors: list[str] = []
-    values = {
-        "status": saved["status"] if saved else "",
-        "update": "",
-        "links": [""],
-        "access": checked_services(saved.get("access") if saved else None),
-    }
+    values = submission_values(questionnaire, saved)
     if request.method == "POST":
-        submitted_links = request.form.getlist("links")
-        values = {
-            "status": request.form.get("status", ""),
-            "update": request.form.get("update", ""),
-            "links": submitted_links or [""],
-            "access": request.form.getlist("access"),
-        }
+        values = submission_values(questionnaire, saved, request.form)
         fields, errors = validate_submission(questionnaire, request.form, row["email"], name)
         if not name:
             errors = [
@@ -1449,11 +1545,9 @@ def record_response(slug: str):
             uploads, upload_error = read_uploads(request.files.getlist("screenshots"))
             if upload_error:
                 errors.append(upload_error)
+        errors.extend(attach_access(questionnaire, request.form, fields or {}))
         if fields and not errors:
             fields["links"] = links
-            access = read_access(questionnaire, request.form)
-            if access is not None:
-                fields["access"] = access
             fields["recorded_by"] = admin_email
             try:
                 save_submission(slug, fields, uploads)

@@ -16,7 +16,7 @@
   {% if reply.access %}
     <ul class="mt-3 space-y-1 text-sm text-stone-800">
       {% for name, allowed in reply.access.items() %}
-        <li>{{ name }} — {{ "Can access" if allowed else "No access" }}</li>
+        <li>{{ name }} — {% if allowed is sameas true %}Can access{% elif allowed is sameas false %}No access{% else %}{{ allowed }}{% endif %}</li>
       {% endfor %}
     </ul>
   {% endif %}

@@ -55,6 +55,7 @@ Aneesa Tayyab <aneesa.tayyab@logicsilicon.com>
 Anesh Kumar <anesh.kumar@logicsilicon.com>
 Ans Hafeez <ans.hafeez@logicsilicon.com>
 Aqib Amjad <aqib.amjad@logicsilicon.com>
+Arbab Haider <arbab.haider@logicsilicon.com>
 Areeba Mehboob <areeba.mehboob@logicsilicon.com>
 Areej Afzal <areej@logicsilicon.com>
 Asad Ahmed <asad.ahmed@logicsilicon.com>
@@ -101,6 +102,7 @@ Javeria Ehsan <javeria.ehsan@logicsilicon.com>
 Jawaid Rasheed <jawaid@logicsilicon.com>
 Junaid Saleem <junaid.saleem@logicsilicon.com>
 Karam Naveed <karam.naveed@logicsilicon.com>
+Khadem Ullah <khadem.ullah@logicsilicon.com>
 Khalid Ur Rehman <khalid.rehman@logicsilicon.com>
 Khwaja Muhammad Mustafa <mustafa@logicsilicon.com>
 Kinza Aziz <kinza.aziz@logicsilicon.com>

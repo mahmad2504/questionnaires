@@ -1,14 +1,21 @@
-      <fieldset class="mt-5 space-y-2 border-0 p-0">
-        <legend class="mb-2 text-sm font-medium text-stone-700">Status</legend>
-        {% for status in questionnaire.statuses %}
-          <label class="flex cursor-pointer items-center gap-3 rounded-md border border-stone-200 bg-white px-3 py-2.5 text-sm font-medium text-stone-800 has-[:checked]:border-brand has-[:checked]:bg-brand-soft">
-            <input class="size-4 accent-brand" type="radio" name="status" value="{{ status }}" {% if values.status == status %}checked{% endif %} required>
-            <span>{{ status }}</span>
-          </label>
+      {% if questionnaire.service_results %}
+      <fieldset class="mt-5 space-y-4 border-0 p-0" id="service-results" data-service-results>
+        <legend class="text-sm font-medium text-stone-700">Result for each service</legend>
+        {% for service in questionnaire.services %}
+          {% set service_index = loop.index0 %}
+          <fieldset class="space-y-2 border-0 p-0">
+            <legend class="text-sm font-medium text-stone-800">{{ service }}</legend>
+            {% for result in questionnaire.service_results %}
+              <label class="flex cursor-pointer items-center gap-3 rounded-md border border-stone-200 bg-white px-3 py-2.5 text-sm font-medium text-stone-800 has-[:checked]:border-brand has-[:checked]:bg-brand-soft">
+                <input class="size-4 accent-brand" type="radio" name="result-{{ service_index }}" value="{{ result }}" data-service-result {% if values.results.get(service) == result %}checked{% endif %}>
+                <span>{{ result }}</span>
+              </label>
+            {% endfor %}
+          </fieldset>
         {% endfor %}
       </fieldset>
-
-      {% if questionnaire.services %}
+      <p class="mt-1.5 text-sm text-stone-500">Choose a result for every service when your status is Done or Completed.</p>
+      {% elif questionnaire.services %}
       <fieldset class="mt-5 space-y-2 border-0 p-0">
         <legend class="mb-2 text-sm font-medium text-stone-700">Which of these services can you access?</legend>
         {% for service in questionnaire.services %}
@@ -55,5 +62,15 @@
         <p class="mt-1.5 hidden text-sm text-red-700" id="screenshot-message" role="alert"></p>
       </div>
       {% endif %}
+
+      <fieldset class="mt-5 space-y-2 border-0 p-0">
+        <legend class="mb-2 text-sm font-medium text-stone-700">Status</legend>
+        {% for status in questionnaire.statuses %}
+          <label class="flex cursor-pointer items-center gap-3 rounded-md border border-stone-200 bg-white px-3 py-2.5 text-sm font-medium text-stone-800 has-[:checked]:border-brand has-[:checked]:bg-brand-soft">
+            <input class="size-4 accent-brand" type="radio" name="status" value="{{ status }}" {% if values.status == status %}checked{% endif %} required>
+            <span>{{ status }}</span>
+          </label>
+        {% endfor %}
+      </fieldset>
 
       <button class="mt-6 inline-flex items-center justify-center rounded-md bg-brand px-4 py-2 text-sm font-medium text-brand-ink hover:bg-brand-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" type="submit" {% if not can_submit %}disabled{% endif %}>{{ submit_label|default("Submit update") }}</button>

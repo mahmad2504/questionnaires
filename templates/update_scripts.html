@@ -1,5 +1,34 @@
     <script>
       (function () {
+        var group = document.querySelector("[data-service-results]");
+        if (!group) return;
+        var statusInputs = document.querySelectorAll('input[name="status"]');
+        var resultInputs = group.querySelectorAll("[data-service-result]");
+
+        function selectedStatus() {
+          for (var index = 0; index < statusInputs.length; index += 1) {
+            if (statusInputs[index].checked) return statusInputs[index].value || "";
+          }
+          return "";
+        }
+
+        function sync() {
+          var key = selectedStatus().trim().toLowerCase();
+          var required = key === "completed" || key === "done";
+          for (var index = 0; index < resultInputs.length; index += 1) {
+            if (required) resultInputs[index].setAttribute("required", "");
+            else resultInputs[index].removeAttribute("required");
+          }
+        }
+
+        for (var index = 0; index < statusInputs.length; index += 1) {
+          statusInputs[index].addEventListener("change", sync);
+        }
+        sync();
+      })();
+    </script>
+    <script>
+      (function () {
         var list = document.getElementById("link-list");
         var addButton = document.getElementById("add-link");
         if (!list || !addButton) return;

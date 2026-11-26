@@ -1,0 +1,10 @@
+{
+  "title": "Verify ARM SCE55 Access",
+  "label": "ARM SCE55 access",
+  "statuses": ["Done", "In Progress"],
+  "services": ["SCE55 ETX", "GitLab", "Artifactory"],
+  "service_results": ["Success", "Failed"],
+  "start": "2026-11-23",
+  "deadline": "2026-11-30",
+  "enabled": true
+}

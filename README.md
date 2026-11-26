@@ -99,7 +99,8 @@ A questionnaire needs two files. `respondents.txt` is optional.
 | --- | --- | --- |
 | `title` | Yes | Heading on the form and in the admin list. |
 | `statuses` | No | Choices on the form. If you omit it, the choices are Done, In progress, and Blocked. A list with no Done or Completed choice gets Completed at the front. |
-| `services` | No | Services the person confirms they can access. Each checked box is saved as access, and each unchecked box is saved as no access. If you omit it, or the list is empty, the form does not show these checkboxes. |
+| `services` | No | Services the person confirms they can access. Each checked box is saved as access, and each unchecked box is saved as no access. If you omit it, or the list is empty, the form does not show these checkboxes. When `service_results` is set, these names are the rows and the checkboxes are not shown. |
+| `service_results` | No | Result choices for each service, such as Success, Failed, and Access denied. When this list is set, each service shows those choices instead of an access checkbox. A Completed or Done status requires one result for every service. Other statuses can leave them unset. Omit it, or use an empty list, to keep the checkboxes. |
 | `label` | No | Short name next to the logo. If you omit it, the label is Responses. |
 | `start` | No | Date the questionnaire appears on the people portal, `YYYY-MM-DD`, or date and time, `YYYY-MM-DDTHH:MM`. Times are local. A date opens at the beginning of that day. If you omit it, or the value is not a valid date, the questionnaire is visible as soon as it is turned on. On the admin page, a future start is listed under Planned with the time it becomes active. After that time it is listed under Active. It stays on the people portal until an admin turns it off. |
 | `deadline` | No | Due date, `YYYY-MM-DD`, or date and time, `YYYY-MM-DDTHH:MM`. Times are local. A date is due through the end of that day. The due line is red after it has passed. If you omit it, or the value is not a valid date, no deadline is shown. |
@@ -108,6 +109,8 @@ A questionnaire needs two files. `respondents.txt` is optional.
 `statuses` must be a list of non-empty text. Done and Completed, in any capitalization, count as complete. When the list has neither, Completed is added at the front so the progress bar can move. `title` cannot be blank.
 
 `services` must be a list of non-empty text. Each name is at most 120 characters, names cannot repeat, and the list can hold at most 40 services. A list that breaks those rules hides the questionnaire until you fix it. The saved reply and summary.csv record every listed service, with `yes` or `no`. Replies saved before you add `services` do not show an access list.
+
+`service_results` uses the same rules as `services`. A list that breaks those rules, or a result list with no services, hides the questionnaire until you fix it. The saved reply and summary.csv record each service with the chosen result, for example `GitLab: Access denied`. A Completed reply that skips a service is rejected.
 
 ### instructions.md
 
