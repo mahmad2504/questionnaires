@@ -1,0 +1,9 @@
+{
+  "title": "Windows App latest release",
+  "label": "Windows App",
+  "statuses": ["Completed", "Disconnection issues"],
+  "services": ["VPN", "Email", "Cloud PC"],
+  "start": "2026-11-25",
+  "deadline": "2026-11-30",
+  "enabled": true
+}

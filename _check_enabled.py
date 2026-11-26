@@ -13,6 +13,7 @@ root = Path(__file__).resolve().parent
 config_path = root / "questionnaires" / slug / "config.json"
 sample = root / "questionnaires" / "enabled-default-check"
 planned = root / "questionnaires" / "planned-check"
+open_ended = root / "questionnaires" / "no-completed-check"
 
 
 def sign_in(address=email):
@@ -22,7 +23,7 @@ def sign_in(address=email):
 
 def restore():
     application.set_questionnaire_enabled(slug, True)
-    for folder in (sample, planned):
+    for folder in (sample, planned, open_ended):
         if folder.exists():
             shutil.rmtree(folder)
 
@@ -177,6 +178,30 @@ try:
     assert "1 Jan 2099" in planned_part
     home_later = client.get("/").get_data(as_text=True)
     assert "Opens later" not in home_later
+
+    assert application.ensure_completed_status(["In progress", "Blocked"]) == [
+        "Completed",
+        "In progress",
+        "Blocked",
+    ]
+    assert application.ensure_completed_status(["Done", "In progress"]) == ["Done", "In progress"]
+    assert application.ensure_completed_status(["completed"]) == ["completed"]
+
+    open_ended.mkdir()
+    (open_ended / "instructions.md").write_text("Report in.\n", encoding="utf-8")
+    (open_ended / "config.json").write_text(
+        json.dumps({"title": "No completed choice", "statuses": ["In progress", "Blocked"]}) + "\n",
+        encoding="utf-8",
+    )
+    loaded = application.load_questionnaire("no-completed-check")
+    assert loaded is not None
+    assert loaded["statuses"] == ["Completed", "In progress", "Blocked"]
+    open_form = client.get("/q/no-completed-check")
+    assert open_form.status_code == 200, open_form.status_code
+    open_form_body = open_form.get_data(as_text=True)
+    assert 'value="Completed"' in open_form_body
+    assert 'value="In progress"' in open_form_body
+    assert 'value="Blocked"' in open_form_body
 
     print("ok")
 finally:
