@@ -4,7 +4,7 @@ You are requested to verify your access to SCE55 ETX, GitLab, and Artifactory by
 
 Log in to your Arm W365 environment (AVD).
 
-Open SCE55 ETX.
+Open SCE55 ETX Url in browser https://etx.us-west-2.sce55.aws.arm.com/etx
 
 Select your preferred OS type.
 
