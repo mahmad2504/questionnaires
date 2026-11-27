@@ -54,3 +54,5 @@ Do not perform any actual work in these environments.
 
 - **Done:** You attempted all three logins. Choose Success or Failed for each service. A failed service still counts as Done.
 - **In Progress:** You have not finished the checks. Say where you are in the update.
+
+A Done reply stays locked until an admin records a different status. You can submit again while the status is In Progress.

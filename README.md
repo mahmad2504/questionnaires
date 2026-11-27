@@ -108,6 +108,8 @@ A questionnaire needs two files. `respondents.txt` is optional.
 
 `statuses` must be a list of non-empty text. Done and Completed, in any capitalization, count as complete. When the list has neither, Completed is added at the front so the progress bar can move. `title` cannot be blank.
 
+A Done or Completed reply stays locked for that person. On the people portal the card shows the title, status, updated time, and service results. It has no update text, links, progress bar, or due line. They cannot submit again until an admin records a different status. Other statuses can still be submitted again. Earlier updates stay.
+
 `services` must be a list of non-empty text. Each name is at most 120 characters, names cannot repeat, and the list can hold at most 40 services. A list that breaks those rules hides the questionnaire until you fix it. The saved reply and summary.csv record every listed service, with `yes` or `no`. Replies saved before you add `services` do not show an access list.
 
 `service_results` uses the same rules as `services`. A list that breaks those rules, or a result list with no services, hides the questionnaire until you fix it. The saved reply and summary.csv record each service with the chosen result, for example `GitLab: Access denied`. A Completed reply that skips a service is rejected.
@@ -137,7 +139,7 @@ Restart is not required after you add or edit a questionnaire. Refresh the page.
 
 On the admin page, Review responses opens the replies for that questionnaire. Download summary.csv on that page saves a spreadsheet of them. Each reply is also stored under `responses/<folder-name>/`.
 
-Record update on a person’s row files a new reply under their name and email. The reply shows that you recorded it, and summary.csv includes your email in `recorded_by`. Their earlier updates stay. You can record an update after the questionnaire is turned off.
+Record update on a person’s row files a new reply under their name and email. The reply shows that you recorded it, and summary.csv includes your email in `recorded_by`. Their earlier updates stay. You can record an update after the questionnaire is turned off. Recording a status other than Done or Completed opens the form again for that person.
 
 ## Files that stay on this machine
 

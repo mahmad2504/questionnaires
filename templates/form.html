@@ -18,6 +18,34 @@
     <div class="instructions mt-4 border-b border-stone-200 pb-5">{{ questionnaire.instructions }}</div>
     {% if not questionnaire.enabled %}
       <p class="mt-6 rounded-xl border border-dashed border-stone-300 px-4 py-8 text-center text-stone-500">This questionnaire is not accepting replies.</p>
+    {% elif locked %}
+      <p class="mt-5 text-sm text-stone-600">This response is locked. An admin can record a different status to open it again.</p>
+      <p class="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-stone-700">
+        {% with status=saved.status %}{% include "status_badge.html" %}{% endwith %}
+        <time class="text-stone-500" datetime="{{ saved.submitted_at }}">Updated {{ saved_label }}</time>
+        {% if saved.recorded_by %}
+          <span class="text-stone-500">Recorded by {{ recorder_label(saved.recorded_by) }}</span>
+        {% endif %}
+      </p>
+      {% if saved["update"] %}
+        <p class="mt-3 whitespace-pre-wrap break-words text-stone-800">{{ saved["update"] }}</p>
+      {% endif %}
+      {% if saved.access %}
+        <ul class="mt-3 space-y-1 text-sm text-stone-800">
+          {% for name, allowed in saved.access.items() %}
+            <li>{{ name }} — {% if allowed is sameas true %}Can access{% elif allowed is sameas false %}No access{% else %}{{ allowed }}{% endif %}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      {% if saved.screenshots %}
+        <div class="mt-3 flex flex-wrap gap-3">
+          {% for shot in saved.screenshots %}
+            <a href="{{ url_for(screenshot_endpoint, slug=questionnaire.slug, folder=saved.folder, filename=shot) }}">
+              <img class="block h-auto max-w-full rounded-md border border-stone-200 bg-white sm:max-w-[280px]" src="{{ url_for(screenshot_endpoint, slug=questionnaire.slug, folder=saved.folder, filename=shot) }}" alt="Screenshot from {{ saved.name }}">
+            </a>
+          {% endfor %}
+        </div>
+      {% endif %}
     {% else %}
     <form method="post" enctype="multipart/form-data">
       {% if errors %}

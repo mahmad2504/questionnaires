@@ -14,6 +14,15 @@
               <time class="text-[11px] leading-4 text-stone-500" datetime="{{ card.submitted_at }}">Updated {{ card.saved_label }}</time>
             {% endif %}
           </div>
+          {% if card.locked %}
+            {% if card.access %}
+              <ul class="mt-3 space-y-1 text-sm text-stone-800">
+                {% for name, allowed in card.access.items() %}
+                  <li>{{ name }} — {% if allowed is sameas true %}Can access{% elif allowed is sameas false %}No access{% else %}{{ allowed }}{% endif %}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          {% else %}
           {% with start=card.start, start_label=card.start_label, started=card.started, deadline=card.deadline, deadline_label=card.deadline_label, overdue=card.deadline_overdue %}{% include "schedule.html" %}{% endwith %}
           {% if card.progress %}
             {% with progress=card.progress %}{% include "progress.html" %}{% endwith %}
@@ -24,6 +33,7 @@
               <a class="inline-flex items-center justify-center rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 no-underline hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" href="{{ card.view_link }}">Your previous responses</a>
             {% endif %}
           </div>
+          {% endif %}
         </li>
       {% endfor %}
     </ul>

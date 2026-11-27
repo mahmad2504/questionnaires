@@ -11,4 +11,4 @@ Choose a status after you have tried the latest Windows App.
 - **Completed:** You installed the latest Windows App and did not see disconnection issues.
 - **Disconnection issues:** You tried the latest version and the connection dropped or disconnected. Describe what happened in the update.
 
-Submit again if your status changes. Earlier updates are kept.
+Submit again if your status changes. A Completed reply stays locked until an admin records a different status. Earlier updates are kept.

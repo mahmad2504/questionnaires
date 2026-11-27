@@ -5,4 +5,4 @@ Tell the team where your part of the release stands.
 - If something is blocked, name what you are waiting on
 - Add a link to the checklist or to the step that is failing
 
-Submit again later if your status changes. Earlier updates are kept.
+Submit again later if your status changes. A Done reply stays locked until an admin records a different status. Earlier updates are kept.

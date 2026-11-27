@@ -25,6 +25,6 @@ Choose a status only after you have checked `winver` on the Arm Cloud PC.
 - **In progress:** The update is installing, is not listed yet, or you still need to restart. Say where you are in the update.
 - **Blocked:** The upgrade cannot proceed. Describe the issue in the update and attach a screenshot.
 
-Submit again if your status changes. Earlier updates are kept. Finish the upgrade early where you can, so the December 3 deployment causes less disruption.
+Submit again if your status changes. A Completed reply stays locked until an admin records a different status. Earlier updates are kept. Finish the upgrade early where you can, so the December 3 deployment causes less disruption.
 
 Source: Arm IT – Windows 11 25H2 update guidelines (Logic Silicon).

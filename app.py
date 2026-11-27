@@ -972,6 +972,12 @@ def status_is_done(status: str) -> bool:
     return status.casefold() in DONE_STATUSES
 
 
+def submission_locked(saved: dict | None) -> bool:
+    if not saved:
+        return False
+    return status_is_done(str(saved.get("status") or ""))
+
+
 def ensure_completed_status(statuses: list[str]) -> list[str]:
     cleaned = [item.strip() for item in statuses]
     if any(status_is_done(item) for item in cleaned):
@@ -1348,6 +1354,8 @@ def home():
                 "link": url_for("questionnaire", slug=slug),
                 "view_link": url_for("own_responses", slug=slug),
                 "has_reply": bool(own_replies),
+                "locked": submission_locked(latest),
+                "access": latest["access"] if latest else {},
                 "status": latest["status"] if latest else "Not submitted",
                 "submitted_at": latest["submitted_at"] if latest else "",
                 "saved_label": format_saved_at(latest["submitted_at"]) if latest else "",
@@ -1437,8 +1445,9 @@ def questionnaire(slug: str):
     signer = {"name": name, "email": email}
     own_replies = responses_for_email(slug, email)
     saved = own_replies[0] if own_replies else None
+    locked = submission_locked(saved)
     values = submission_values(questionnaire, saved)
-    if request.method == "POST":
+    if request.method == "POST" and not locked:
         values = submission_values(questionnaire, saved, request.form)
         fields, errors = validate_submission(questionnaire, request.form, email, name)
         links, link_error = read_links(request.form)
@@ -1466,6 +1475,9 @@ def questionnaire(slug: str):
         values=values,
         signer=signer,
         saved=saved,
+        locked=locked,
+        saved_label=format_saved_at(saved["submitted_at"]) if saved else "",
+        screenshot_endpoint="own_screenshot",
         image_uploads_enabled=IMAGE_UPLOADS_ENABLED,
     )
 
@@ -1494,7 +1506,13 @@ def thanks(slug: str):
         abort(404)
     if not questionnaire["enabled"]:
         return questionnaire_closed()
-    return render_template("thanks.html", questionnaire=questionnaire)
+    own_replies = responses_for_email(slug, email)
+    saved = own_replies[0] if own_replies else None
+    return render_template(
+        "thanks.html",
+        questionnaire=questionnaire,
+        locked=submission_locked(saved),
+    )
 
 
 @app.get("/admin/q/<slug>")
