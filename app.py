@@ -5,7 +5,9 @@ Run: python app.py
 
 from __future__ import annotations
 
+import base64
 import csv
+import hashlib
 import io
 import json
 import re
@@ -16,6 +18,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import markdown
+from cryptography.fernet import Fernet, InvalidToken
 from flask import Flask, abort, redirect, render_template, request, send_file, session, url_for
 from markupsafe import Markup
 from werkzeug.exceptions import RequestEntityTooLarge
@@ -24,10 +27,16 @@ from werkzeug.security import check_password_hash, generate_password_hash
 ROOT = Path(__file__).resolve().parent
 QUESTIONNAIRES = ROOT / "questionnaires"
 RESPONSES = ROOT / "responses"
+RESPONDENT_LISTS = ROOT / "respondent-lists"
 AUTH_PATH = ROOT / "auth.json"
 ACCOUNTS_PATH = ROOT / "accounts.json"
 ALLOWED_PATH = ROOT / "allowed.txt"
 ADMINS_PATH = ROOT / "admins.txt"
+RESPONDENT_LIST_INDEX = RESPONDENT_LISTS / "index.json"
+MAX_RESPONDENT_LIST_NAME = 80
+LISTS_DIR = ROOT / "respondent-lists"
+LISTS_INDEX = LISTS_DIR / "index.json"
+MAX_LIST_NAME_LENGTH = 80
 MIN_PASSWORD_LENGTH = 8
 _store_lock = threading.RLock()
 
@@ -249,13 +258,72 @@ def parse_allowed_line(line: str) -> tuple[str, str] | None:
     return None
 
 
-def load_allowed_people() -> dict[str, dict[str, str]]:
-    if not ALLOWED_PATH.is_file():
-        return {}
+SEALED_PREFIX = "enc:v1"
+
+
+class AllowListUnreadable(Exception):
+    pass
+
+
+class SealedFileUnreadable(Exception):
+    pass
+
+
+class ListLibraryUnreadable(Exception):
+    pass
+
+
+def seal_fernet(purpose: bytes) -> Fernet:
+    secret = load_auth()["secret_key"]
+    digest = hashlib.sha256(purpose + b"\0" + secret.encode("utf-8")).digest()
+    return Fernet(base64.urlsafe_b64encode(digest))
+
+
+def allowlist_fernet() -> Fernet:
+    return seal_fernet(b"allowed-list-v1")
+
+
+def respondents_fernet() -> Fernet:
+    return seal_fernet(b"respondents-v1")
+
+
+def respondent_lists_fernet() -> Fernet:
+    return seal_fernet(b"respondent-lists-v1")
+
+
+def lists_fernet() -> Fernet:
+    return seal_fernet(b"respondent-lists-v1")
+
+
+def write_sealed_text(path: Path, plaintext: str, fernet: Fernet) -> None:
+    token = fernet.encrypt(plaintext.encode("utf-8")).decode("ascii")
+    body = f"{SEALED_PREFIX}\n{token}\n"
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(body, encoding="utf-8")
+    temporary.replace(path)
+
+
+def read_sealed_text(path: Path, fernet: Fernet) -> tuple[str | None, str]:
+    if not path.is_file():
+        return "", "missing"
     try:
-        lines = ALLOWED_PATH.read_text(encoding="utf-8-sig").splitlines()
+        raw = path.read_text(encoding="utf-8-sig")
     except (OSError, UnicodeError):
-        return {}
+        return None, "broken"
+    first, _, rest = raw.partition("\n")
+    if first.strip() != SEALED_PREFIX:
+        return raw, "plain"
+    token = "".join(rest.split())
+    if not token:
+        return None, "broken"
+    try:
+        plaintext = fernet.decrypt(token.encode("ascii")).decode("utf-8")
+    except (InvalidToken, ValueError, UnicodeError):
+        return None, "broken"
+    return plaintext, "enc"
+
+
+def people_from_lines(lines: list[str]) -> dict[str, dict[str, str]]:
     people: dict[str, dict[str, str]] = {}
     for line in lines:
         line = line.strip()
@@ -270,6 +338,91 @@ def load_allowed_people() -> dict[str, dict[str, str]]:
             continue
         people[key] = {"email": email, "name": name}
     return people
+
+
+def render_allowed_people(people: dict[str, dict[str, str]]) -> str:
+    ordered = sorted(
+        people.values(),
+        key=lambda person: (person["name"].casefold(), normalize_email(person["email"])),
+    )
+    lines = []
+    for person in ordered:
+        name = person["name"].strip()
+        email = person["email"].strip()
+        if name:
+            lines.append(f"{name} <{email}>")
+        else:
+            lines.append(email)
+    text = "\n".join(lines)
+    if text:
+        text += "\n"
+    return text
+
+
+def clean_allowed_name(value: str) -> str | None:
+    name = " ".join(value.split())
+    if not name or len(name) > 200 or "<" in name or ">" in name:
+        return None
+    return name
+
+
+def _write_allowed_plaintext_locked(plaintext: str) -> None:
+    write_sealed_text(ALLOWED_PATH, plaintext, allowlist_fernet())
+
+
+def _read_allowed_raw_locked() -> tuple[str | None, str]:
+    return read_sealed_text(ALLOWED_PATH, allowlist_fernet())
+
+
+def _read_allowed_locked() -> tuple[dict[str, dict[str, str]], bool]:
+    plaintext, status = _read_allowed_raw_locked()
+    if status == "broken" or plaintext is None:
+        return {}, True
+    people = people_from_lines(plaintext.splitlines())
+    if status == "plain":
+        try:
+            _write_allowed_plaintext_locked(render_allowed_people(people))
+        except OSError:
+            pass
+    return people, False
+
+
+def load_allowed_list() -> tuple[dict[str, dict[str, str]], bool]:
+    with _store_lock:
+        return _read_allowed_locked()
+
+
+def load_allowed_people() -> dict[str, dict[str, str]]:
+    people, _broken = load_allowed_list()
+    return people
+
+
+def add_allowed_person(name: str, email: str) -> str:
+    key = normalize_email(email)
+    stored_email = email.strip()
+    with _store_lock:
+        people, broken = _read_allowed_locked()
+        if broken:
+            raise AllowListUnreadable
+        existing = people.get(key)
+        if existing and existing["name"] == name and existing["email"] == stored_email:
+            return "same"
+        people[key] = {"email": stored_email, "name": name}
+        _write_allowed_plaintext_locked(render_allowed_people(people))
+        return "updated" if existing else "added"
+
+
+def remove_allowed_person(email: str) -> dict[str, str] | None:
+    key = normalize_email(email)
+    with _store_lock:
+        people, broken = _read_allowed_locked()
+        if broken:
+            raise AllowListUnreadable
+        person = people.pop(key, None)
+        if person is None:
+            return None
+        _write_allowed_plaintext_locked(render_allowed_people(people))
+        return person
 
 
 def allowed_person(email: str) -> dict[str, str] | None:
@@ -366,12 +519,10 @@ def render_instructions(text: str) -> Markup:
     return Markup(wrap_instruction_steps(html))
 
 
-def load_respondents(path: Path) -> list[str] | None:
-    if not path.is_file():
-        return None
+def respondent_emails_from_lines(lines: list[str]) -> list[str]:
     emails: list[str] = []
     seen: set[str] = set()
-    for line in path.read_text(encoding="utf-8-sig").splitlines():
+    for line in lines:
         line = line.strip()
         if not line or line.startswith("#"):
             continue
@@ -383,7 +534,275 @@ def load_respondents(path: Path) -> list[str] | None:
     return emails
 
 
+def render_respondent_emails(emails: list[str]) -> str:
+    text = "\n".join(sorted(emails, key=normalize_email))
+    if text:
+        text += "\n"
+    return text
+
+
+def respondents_path(slug: str) -> Path | None:
+    folder = slug_dir(QUESTIONNAIRES, slug)
+    if folder is None or not folder.is_dir():
+        return None
+    return folder / "respondents.txt"
+
+
+def _read_respondents_locked(path: Path) -> tuple[list[str] | None, bool]:
+    plaintext, status = read_sealed_text(path, respondents_fernet())
+    if status == "missing":
+        return None, False
+    if status == "broken" or plaintext is None:
+        return None, True
+    emails = respondent_emails_from_lines(plaintext.splitlines())
+    if status == "plain":
+        try:
+            write_sealed_text(path, render_respondent_emails(emails), respondents_fernet())
+        except OSError:
+            pass
+    return emails, False
+
+
+def load_respondents(path: Path) -> tuple[list[str] | None, bool]:
+    with _store_lock:
+        return _read_respondents_locked(path)
+
+
+def add_respondent(slug: str, email: str) -> str:
+    path = respondents_path(slug)
+    if path is None:
+        raise FileNotFoundError(slug)
+    stored = email.strip()
+    key = normalize_email(stored)
+    with _store_lock:
+        emails, broken = _read_respondents_locked(path)
+        if broken:
+            raise SealedFileUnreadable
+        current = list(emails or [])
+        if any(normalize_email(item) == key for item in current):
+            return "same"
+        current.append(stored)
+        write_sealed_text(path, render_respondent_emails(current), respondents_fernet())
+        return "added"
+
+
+def remove_respondent(slug: str, email: str) -> str | None:
+    path = respondents_path(slug)
+    if path is None:
+        raise FileNotFoundError(slug)
+    key = normalize_email(email)
+    with _store_lock:
+        emails, broken = _read_respondents_locked(path)
+        if broken:
+            raise SealedFileUnreadable
+        if emails is None:
+            return None
+        removed = None
+        kept: list[str] = []
+        for item in emails:
+            if removed is None and normalize_email(item) == key:
+                removed = item
+                continue
+            kept.append(item)
+        if removed is None:
+            return None
+        write_sealed_text(path, render_respondent_emails(kept), respondents_fernet())
+        return removed
+
+
+def allow_all_respondents(slug: str) -> bool:
+    path = respondents_path(slug)
+    if path is None:
+        raise FileNotFoundError(slug)
+    with _store_lock:
+        _emails, broken = _read_respondents_locked(path)
+        if broken:
+            raise SealedFileUnreadable
+        if not path.is_file():
+            return False
+        path.unlink()
+        return True
+
+
+def clean_respondent_list_name(value: str) -> str | None:
+    name = " ".join(value.split())
+    if not name or len(name) > MAX_RESPONDENT_LIST_NAME:
+        return None
+    return name
+
+
+def respondent_list_slug(name: str) -> str | None:
+    cleaned = clean_respondent_list_name(name)
+    if cleaned is None:
+        return None
+    slug = re.sub(r"[^A-Za-z0-9]+", "-", cleaned).strip("-").casefold()
+    if not slug or not SLUG_RE.fullmatch(slug) or slug.upper() in RESERVED_NAMES:
+        return None
+    return slug
+
+
+def respondent_list_path(list_slug: str) -> Path | None:
+    if not SLUG_RE.fullmatch(list_slug) or list_slug.upper() in RESERVED_NAMES:
+        return None
+    path = RESPONDENT_LISTS / f"{list_slug}.txt"
+    if not contained(RESPONDENT_LISTS, path):
+        return None
+    return path
+
+
+def _read_respondent_list_index_locked() -> dict[str, str]:
+    if not RESPONDENT_LIST_INDEX.is_file():
+        return {}
+    try:
+        loaded = json.loads(RESPONDENT_LIST_INDEX.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError, UnicodeError):
+        return {}
+    if not isinstance(loaded, dict):
+        return {}
+    names: dict[str, str] = {}
+    for slug, name in loaded.items():
+        if not isinstance(slug, str) or not isinstance(name, str):
+            continue
+        if not SLUG_RE.fullmatch(slug) or slug.upper() in RESERVED_NAMES:
+            continue
+        cleaned = clean_respondent_list_name(name)
+        if cleaned is None:
+            continue
+        names[slug] = cleaned
+    return names
+
+
+def _write_respondent_list_index_locked(names: dict[str, str]) -> None:
+    ordered = {
+        slug: names[slug]
+        for slug in sorted(names, key=lambda item: (names[item].casefold(), item))
+    }
+    write_json(RESPONDENT_LIST_INDEX, ordered)
+
+
+def _read_saved_respondent_list_locked(path: Path) -> tuple[list[str] | None, bool]:
+    plaintext, status = read_sealed_text(path, respondent_lists_fernet())
+    if status == "missing":
+        return None, False
+    if status == "broken" or plaintext is None:
+        return None, True
+    emails = respondent_emails_from_lines(plaintext.splitlines())
+    if status == "plain":
+        try:
+            write_sealed_text(path, render_respondent_emails(emails), respondent_lists_fernet())
+        except OSError:
+            pass
+    return emails, False
+
+
+def list_saved_respondent_lists() -> list[dict]:
+    with _store_lock:
+        names = _read_respondent_list_index_locked()
+        rows: list[dict] = []
+        for slug, name in names.items():
+            path = respondent_list_path(slug)
+            if path is None:
+                continue
+            emails, broken = _read_saved_respondent_list_locked(path)
+            rows.append(
+                {
+                    "slug": slug,
+                    "name": name,
+                    "count": 0 if broken or emails is None else len(emails),
+                    "broken": broken or emails is None,
+                }
+            )
+        rows.sort(key=lambda row: (row["name"].casefold(), row["slug"]))
+        return rows
+
+
+def save_respondent_list_copy(questionnaire_slug: str, name: str) -> dict:
+    list_name = clean_respondent_list_name(name)
+    list_slug = respondent_list_slug(name) if list_name is not None else None
+    if list_name is None or list_slug is None:
+        raise ValueError("name")
+    path = respondents_path(questionnaire_slug)
+    list_path = respondent_list_path(list_slug)
+    if path is None or list_path is None:
+        raise FileNotFoundError(questionnaire_slug)
+    with _store_lock:
+        emails, broken = _read_respondents_locked(path)
+        if broken:
+            raise SealedFileUnreadable
+        if not emails:
+            raise ValueError("empty")
+        RESPONDENT_LISTS.mkdir(parents=True, exist_ok=True)
+        names = _read_respondent_list_index_locked()
+        replaced = list_slug in names
+        write_sealed_text(
+            list_path,
+            render_respondent_emails(emails),
+            respondent_lists_fernet(),
+        )
+        names[list_slug] = list_name
+        _write_respondent_list_index_locked(names)
+        return {
+            "action": "replaced" if replaced else "created",
+            "slug": list_slug,
+            "name": list_name,
+            "count": len(emails),
+        }
+
+
+def import_saved_respondent_list(questionnaire_slug: str, list_slug: str) -> dict:
+    path = respondents_path(questionnaire_slug)
+    list_path = respondent_list_path(list_slug)
+    if path is None or list_path is None:
+        raise FileNotFoundError(questionnaire_slug)
+    with _store_lock:
+        names = _read_respondent_list_index_locked()
+        list_name = names.get(list_slug)
+        if list_name is None:
+            raise FileNotFoundError(list_slug)
+        source, source_broken = _read_saved_respondent_list_locked(list_path)
+        if source_broken or source is None:
+            raise SealedFileUnreadable
+        current, broken = _read_respondents_locked(path)
+        if broken:
+            raise SealedFileUnreadable
+        merged = list(current or [])
+        seen = {normalize_email(item) for item in merged}
+        added = 0
+        for email in source:
+            key = normalize_email(email)
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(email)
+            added += 1
+        write_sealed_text(path, render_respondent_emails(merged), respondents_fernet())
+        skipped = len(source) - added
+        return {
+            "name": list_name,
+            "added": added,
+            "skipped": skipped,
+            "count": len(source),
+        }
+
+
+def delete_saved_respondent_list(list_slug: str) -> str | None:
+    list_path = respondent_list_path(list_slug)
+    if list_path is None:
+        return None
+    with _store_lock:
+        names = _read_respondent_list_index_locked()
+        list_name = names.pop(list_slug, None)
+        if list_name is None:
+            return None
+        if list_path.is_file():
+            list_path.unlink()
+        _write_respondent_list_index_locked(names)
+        return list_name
+
+
 def email_on_respondent_list(questionnaire: dict, email: str) -> bool:
+    if questionnaire.get("respondents_broken"):
+        return False
     respondents = questionnaire["respondents"]
     if respondents is None:
         return True
@@ -528,6 +947,7 @@ def load_questionnaire(slug: str) -> dict | None:
     label = label_value.strip() if isinstance(label_value, str) and label_value.strip() else DEFAULT_LABEL
     deadline = parse_deadline(config.get("deadline")) or {}
     start = parse_start(config.get("start")) or {}
+    respondents, respondents_broken = load_respondents(folder / "respondents.txt")
     return {
         "slug": slug,
         "title": title.strip(),
@@ -536,7 +956,8 @@ def load_questionnaire(slug: str) -> dict | None:
         "services": services,
         "service_results": service_results,
         "instructions": render_instructions(instructions),
-        "respondents": load_respondents(folder / "respondents.txt"),
+        "respondents": respondents,
+        "respondents_broken": respondents_broken,
         "enabled": enabled,
         "deadline": deadline.get("deadline", ""),
         "deadline_label": deadline.get("deadline_label", ""),
@@ -624,6 +1045,8 @@ def group_responses(replies: list[dict]) -> dict[str, list[dict]]:
 
 
 def reply_progress(questionnaire: dict, replies: list[dict]) -> dict | None:
+    if questionnaire.get("respondents_broken"):
+        return None
     respondents = questionnaire["respondents"]
     if respondents is None:
         return None
@@ -1379,6 +1802,8 @@ def admin_card(questionnaire: dict) -> dict:
         "slug": questionnaire["slug"],
         "link": url_for("questionnaire", slug=questionnaire["slug"], _external=True),
         "review_link": url_for("review", slug=questionnaire["slug"]),
+        "respondents_link": url_for("respondents", slug=questionnaire["slug"]),
+        "respondents_broken": questionnaire["respondents_broken"],
         "progress": reply_progress(questionnaire, replies),
         "deadline": questionnaire["deadline"],
         "deadline_label": questionnaire["deadline_label"],
@@ -1408,6 +1833,350 @@ def admin():
         planned_cards=planned_cards,
         any_questionnaires=bool(found),
     )
+
+
+def people_view(
+    errors: list[str] | None = None,
+    name: str = "",
+    email: str = "",
+    notice: str = "",
+):
+    people, broken = load_allowed_list()
+    me = normalize_email(signed_in_email() or "")
+    rows = [
+        {
+            "name": person["name"],
+            "email": person["email"],
+            "self": normalize_email(person["email"]) == me,
+        }
+        for person in sorted(
+            people.values(),
+            key=lambda person: (person["name"].casefold(), normalize_email(person["email"])),
+        )
+    ]
+    return render_template(
+        "people.html",
+        rows=rows,
+        errors=errors or [],
+        name=name,
+        email=email,
+        notice=notice,
+        broken=broken,
+        count=len(rows),
+    )
+
+
+@app.route("/admin/people", methods=["GET", "POST"])
+def people():
+    if request.method == "POST":
+        name_input = request.form.get("name", "")
+        email_input = request.form.get("email", "")
+        name = clean_allowed_name(name_input)
+        email = email_input.strip()
+        errors: list[str] = []
+        if name is None:
+            errors.append("Enter a name without < or >. Use at most 200 characters.")
+        if not email or len(email) > 200 or not EMAIL_RE.fullmatch(email):
+            errors.append("Enter an email address.")
+        if errors or name is None:
+            return people_view(errors=errors, name=" ".join(name_input.split()), email=email)
+        try:
+            action = add_allowed_person(name, email)
+        except AllowListUnreadable:
+            return people_view(
+                errors=["The sign-in list could not be read. allowed.txt was left unchanged."],
+                name=name,
+                email=email,
+            )
+        if action == "added":
+            session["people_notice"] = f"{name} can sign in now."
+        elif action == "updated":
+            session["people_notice"] = f"Updated the name for {email}."
+        else:
+            session["people_notice"] = f"{name} is already on the sign-in list."
+        return redirect(url_for("people"))
+    notice = session.pop("people_notice", "")
+    if not isinstance(notice, str):
+        notice = ""
+    return people_view(notice=notice)
+
+
+@app.post("/admin/people/remove")
+def remove_person():
+    email = request.form.get("email", "").strip()
+    if normalize_email(email) == normalize_email(signed_in_email() or ""):
+        return people_view(errors=["You cannot remove your own sign-in."])
+    if not email or len(email) > 200 or not EMAIL_RE.fullmatch(email):
+        return people_view(errors=["Enter an email address."])
+    try:
+        removed = remove_allowed_person(email)
+    except AllowListUnreadable:
+        return people_view(
+            errors=["The sign-in list could not be read. allowed.txt was left unchanged."]
+        )
+    if removed is None:
+        return people_view(errors=["That email is not on the sign-in list."])
+    label = removed["name"].strip() or removed["email"]
+    session["people_notice"] = f"{label} was removed from the sign-in list."
+    return redirect(url_for("people"))
+
+
+def respondent_rows(emails: list[str]) -> list[dict]:
+    rows = []
+    for item in emails:
+        person = allowed_person(item)
+        name = person["name"] if person else ""
+        rows.append({"email": item, "name": name, "on_signin": person is not None})
+    rows.sort(key=lambda row: (row["name"].casefold(), normalize_email(row["email"])))
+    return rows
+
+
+def respondents_view(
+    questionnaire: dict,
+    errors: list[str] | None = None,
+    email: str = "",
+    notice: str = "",
+    list_name: str = "",
+):
+    broken = questionnaire["respondents_broken"]
+    emails = [] if broken or questionnaire["respondents"] is None else questionnaire["respondents"]
+    rows = respondent_rows(emails)
+    return render_template(
+        "respondents.html",
+        questionnaire=questionnaire,
+        rows=rows,
+        errors=errors or [],
+        email=email,
+        notice=notice,
+        broken=broken,
+        has_list=questionnaire["respondents"] is not None and not broken,
+        count=len(rows),
+        saved_lists=list_saved_respondent_lists(),
+        list_name=list_name,
+    )
+
+
+def pop_respondents_notice(slug: str) -> str:
+    notice = session.pop("respondents_notice", None)
+    if isinstance(notice, dict) and notice.get("slug") == slug and isinstance(notice.get("text"), str):
+        return notice["text"]
+    return ""
+
+
+def remember_respondents_notice(slug: str, text: str) -> None:
+    session["respondents_notice"] = {"slug": slug, "text": text}
+
+
+@app.route("/admin/q/<slug>/respondents", methods=["GET", "POST"])
+def respondents(slug: str):
+    questionnaire = require_questionnaire(slug)
+    if request.method == "POST":
+        email = request.form.get("email", "").strip()
+        if not email or len(email) > 200 or not EMAIL_RE.fullmatch(email):
+            return respondents_view(questionnaire, errors=["Enter an email address."], email=email)
+        try:
+            action = add_respondent(slug, email)
+        except FileNotFoundError:
+            abort(404)
+        except SealedFileUnreadable:
+            return respondents_view(
+                require_questionnaire(slug),
+                errors=["The respondent list could not be read. respondents.txt was left unchanged."],
+                email=email,
+            )
+        except OSError:
+            return respondents_view(
+                require_questionnaire(slug),
+                errors=["Could not save the respondent list. Try again."],
+                email=email,
+            )
+        if action == "added":
+            remember_respondents_notice(slug, f"{email} is on the respondent list.")
+        else:
+            remember_respondents_notice(slug, f"{email} is already on the respondent list.")
+        return redirect(url_for("respondents", slug=slug))
+    return respondents_view(questionnaire, notice=pop_respondents_notice(slug))
+
+
+@app.post("/admin/q/<slug>/respondents/remove")
+def remove_questionnaire_respondent(slug: str):
+    questionnaire = require_questionnaire(slug)
+    email = request.form.get("email", "").strip()
+    if not email or len(email) > 200 or "\n" in email or "\r" in email:
+        return respondents_view(questionnaire, errors=["Enter an email address."])
+    try:
+        removed = remove_respondent(slug, email)
+    except FileNotFoundError:
+        abort(404)
+    except SealedFileUnreadable:
+        return respondents_view(
+            require_questionnaire(slug),
+            errors=["The respondent list could not be read. respondents.txt was left unchanged."],
+        )
+    except OSError:
+        return respondents_view(
+            require_questionnaire(slug),
+            errors=["Could not save the respondent list. Try again."],
+        )
+    if removed is None:
+        return respondents_view(
+            require_questionnaire(slug),
+            errors=["That email is not on the respondent list."],
+        )
+    remember_respondents_notice(slug, f"{removed} was removed from the respondent list.")
+    return redirect(url_for("respondents", slug=slug))
+
+
+@app.post("/admin/q/<slug>/respondents/everyone")
+def respondents_allow_everyone(slug: str):
+    require_questionnaire(slug)
+    try:
+        cleared = allow_all_respondents(slug)
+    except FileNotFoundError:
+        abort(404)
+    except SealedFileUnreadable:
+        return respondents_view(
+            require_questionnaire(slug),
+            errors=["The respondent list could not be read. respondents.txt was left unchanged."],
+        )
+    except OSError:
+        return respondents_view(
+            require_questionnaire(slug),
+            errors=["Could not save the respondent list. Try again."],
+        )
+    if cleared:
+        remember_respondents_notice(slug, "Anyone who can sign in can open this questionnaire.")
+    else:
+        remember_respondents_notice(slug, "Anyone who can sign in can already open this questionnaire.")
+    return redirect(url_for("respondents", slug=slug))
+
+
+@app.post("/admin/q/<slug>/respondents/lists/save")
+def save_questionnaire_respondent_list(slug: str):
+    questionnaire = require_questionnaire(slug)
+    list_name = request.form.get("name", "")
+    cleaned = clean_respondent_list_name(list_name)
+    if cleaned is None or respondent_list_slug(list_name) is None:
+        return respondents_view(
+            questionnaire,
+            errors=["Enter a list name using letters or numbers."],
+            list_name=list_name.strip(),
+        )
+    try:
+        saved = save_respondent_list_copy(slug, cleaned)
+    except FileNotFoundError:
+        abort(404)
+    except SealedFileUnreadable:
+        return respondents_view(
+            require_questionnaire(slug),
+            errors=["The respondent list could not be read. respondents.txt was left unchanged."],
+            list_name=cleaned,
+        )
+    except ValueError as error:
+        if str(error) == "empty":
+            return respondents_view(
+                require_questionnaire(slug),
+                errors=["Add at least one email before saving a named list."],
+                list_name=cleaned,
+            )
+        return respondents_view(
+            require_questionnaire(slug),
+            errors=["Enter a list name using letters or numbers."],
+            list_name=list_name.strip(),
+        )
+    except OSError:
+        return respondents_view(
+            require_questionnaire(slug),
+            errors=["Could not save the named list. Try again."],
+            list_name=cleaned,
+        )
+    people = "person" if saved["count"] == 1 else "people"
+    if saved["action"] == "replaced":
+        remember_respondents_notice(
+            slug,
+            f"Replaced {saved['name']} with {saved['count']} {people} from this questionnaire.",
+        )
+    else:
+        remember_respondents_notice(
+            slug,
+            f"Saved {saved['name']} with {saved['count']} {people}.",
+        )
+    return redirect(url_for("respondents", slug=slug))
+
+
+@app.post("/admin/q/<slug>/respondents/lists/import")
+def import_questionnaire_respondent_list(slug: str):
+    questionnaire = require_questionnaire(slug)
+    list_slug = request.form.get("list", "").strip()
+    if not list_slug or not SLUG_RE.fullmatch(list_slug):
+        return respondents_view(questionnaire, errors=["Choose a saved list to import."])
+    try:
+        result = import_saved_respondent_list(slug, list_slug)
+    except FileNotFoundError:
+        return respondents_view(
+            require_questionnaire(slug),
+            errors=["That saved list was not found."],
+        )
+    except SealedFileUnreadable:
+        questionnaire = require_questionnaire(slug)
+        if questionnaire["respondents_broken"]:
+            return respondents_view(
+                questionnaire,
+                errors=["The respondent list could not be read. respondents.txt was left unchanged."],
+            )
+        return respondents_view(
+            questionnaire,
+            errors=["That saved list could not be read."],
+        )
+    except OSError:
+        return respondents_view(
+            require_questionnaire(slug),
+            errors=["Could not save the respondent list. Try again."],
+        )
+    if result["added"] == 0:
+        remember_respondents_notice(
+            slug,
+            f"Everyone from {result['name']} is already on the list.",
+        )
+    elif result["skipped"] == 0:
+        people = "email" if result["added"] == 1 else "emails"
+        remember_respondents_notice(
+            slug,
+            f"Added {result['added']} {people} from {result['name']}.",
+        )
+    else:
+        added_label = "email" if result["added"] == 1 else "emails"
+        skipped_label = "was" if result["skipped"] == 1 else "were"
+        remember_respondents_notice(
+            slug,
+            f"Added {result['added']} {added_label} from {result['name']}. {result['skipped']} {skipped_label} already on the list.",
+        )
+    return redirect(url_for("respondents", slug=slug))
+
+
+@app.post("/admin/q/<slug>/respondents/lists/remove")
+def remove_saved_questionnaire_respondent_list(slug: str):
+    require_questionnaire(slug)
+    list_slug = request.form.get("list", "").strip()
+    if not list_slug or not SLUG_RE.fullmatch(list_slug):
+        return respondents_view(
+            require_questionnaire(slug),
+            errors=["Choose a saved list to remove."],
+        )
+    try:
+        removed = delete_saved_respondent_list(list_slug)
+    except OSError:
+        return respondents_view(
+            require_questionnaire(slug),
+            errors=["Could not remove the named list. Try again."],
+        )
+    if removed is None:
+        return respondents_view(
+            require_questionnaire(slug),
+            errors=["That saved list was not found."],
+        )
+    remember_respondents_notice(slug, f"{removed} was removed from the saved lists.")
+    return redirect(url_for("respondents", slug=slug))
 
 
 @app.get("/admin/archive")
@@ -1550,7 +2319,7 @@ def record_response(slug: str):
         fields, errors = validate_submission(questionnaire, request.form, row["email"], name)
         if not name:
             errors = [
-                "Add their name in allowed.txt before recording an update."
+                "Add their name on the People page before recording an update."
                 if item == MISSING_NAME
                 else item
                 for item in errors
@@ -1697,5 +2466,6 @@ def too_large(_error):
 if __name__ == "__main__":
     QUESTIONNAIRES.mkdir(exist_ok=True)
     RESPONSES.mkdir(exist_ok=True)
+    RESPONDENT_LISTS.mkdir(exist_ok=True)
     ensure_secret()
     app.run(host="0.0.0.0", port=5000, debug=False)

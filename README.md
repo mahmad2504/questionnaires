@@ -38,16 +38,24 @@ Stop it with Ctrl+C.
 
 ### Who can sign in
 
-`allowed.txt` is the sign-in list. One person per line, with a name and an email:
+The sign-in list is `allowed.txt`. The file is encrypted, so opening it does not show names or emails. Sign in as an admin and open [http://127.0.0.1:5000/admin/people](http://127.0.0.1:5000/admin/people) to see the list, add a person, or remove one. Do not edit `allowed.txt` by hand.
+
+Add a name and an email. The name is required to submit a form. Adding an email that is already on the list updates that person's name. You cannot remove your own email.
+
+Removing someone only takes them off the sign-in list. Their password in `accounts.json` stays, and they stay on any questionnaire respondent list. Adding the same email back lets them sign in with the password they already chose.
+
+The name shown on a reply comes from this list. Change it on the People page, and the next sign-in picks up the new name.
+
+The encryption key comes from `secret_key` in `auth.json`. Leave that value as it is. Changing it makes `allowed.txt`, each questionnaire `respondents.txt`, and named lists in `respondent-lists/` unreadable.
+
+If you replace `allowed.txt` with the old plain text, the app encrypts it again on the next request. One person per line:
 
 ```text
 Ada Lovelace <ada@example.com>
 Grace Hopper <grace@example.com>
 ```
 
-Blank lines and lines starting with `#` are ignored. The name is required to submit a form. An email with no name can sign in, but the submit button stays off until you add the name.
-
-The name shown on a reply comes from this file. Change it here, and the next sign-in picks up the new name.
+Blank lines and lines starting with `#` are ignored. An email with no name can sign in, but the submit button stays off until you add the name.
 
 ### Admins
 
@@ -61,7 +69,7 @@ ada@example.com
 
 On the first start, the app creates `auth.json` if it is missing. The shared starter password is `default_password` in that file. A newly created file uses `welcome`. Change that value before other people use the portal.
 
-`auth.json` also holds `secret_key`, which the app fills in. Leave that value as it is.
+`auth.json` also holds `secret_key`, which the app fills in. Leave that value as it is. It is the key for `allowed.txt`, each questionnaire `respondents.txt`, and named lists in `respondent-lists/`.
 
 ### Choosing a password
 
@@ -120,14 +128,28 @@ Markdown shown at the top of the form, above the questions. Headings, paragraphs
 
 ### respondents.txt
 
-One email per line. This is the list of people you expect a reply from. While the questionnaire is open, only these addresses can see it. The people portal and the admin pages show how many of them are completed, a count for each other status, and how many have not submitted. The bar is the completed share of that list.
+The list of people you expect a reply from. Sign in as an admin and open Respondents on that questionnaire, for example [http://127.0.0.1:5000/admin/q/release-checklist/respondents](http://127.0.0.1:5000/admin/q/release-checklist/respondents). Add an email or remove one there. Do not edit `respondents.txt` by hand.
+
+The file is encrypted with `secret_key` from `auth.json`, the same key `allowed.txt` uses. Leave that value as it is. Changing it makes `respondents.txt` unreadable.
+
+While the list exists, only these addresses can see the questionnaire. The people portal and the admin pages show how many of them are completed, a count for each other status, and how many have not submitted. The bar is the completed share of that list.
+
+An empty list means nobody can open the questionnaire. Allow everyone who can sign in, on the Respondents page, deletes the file. If the file is missing, anyone in `allowed.txt` can open the questionnaire, and those pages do not show these counts.
+
+If you replace `respondents.txt` with plain text, the app encrypts it again on the next request. One email per line:
 
 ```text
 ada@example.com
 grace@example.com
 ```
 
-If this file is missing, anyone in `allowed.txt` can open the questionnaire, and those pages do not show these counts.
+Blank lines and lines starting with `#` are ignored.
+
+### Named respondent lists
+
+On the Respondents page you can copy the current emails under a name, then import that name onto any questionnaire. Import adds missing addresses and leaves people already on the list.
+
+The copy is stored under `respondent-lists/`, not inside the questionnaire folder. Deleting the questionnaire leaves the named list in place. The files are encrypted with `secret_key` from `auth.json`, the same key `respondents.txt` uses. Leave that value as it is. Do not edit `respondent-lists/` by hand.
 
 ### Turn a questionnaire on or off
 

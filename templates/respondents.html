@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}Respondents{% endblock %}
+{% block main_width %}max-w-6xl{% endblock %}
+{% block content %}
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <h1 class="text-2xl font-semibold tracking-tight text-stone-900">Respondents</h1>
+    <div class="flex items-center gap-4">
+      <a class="text-sm font-medium text-brand-deep hover:text-brand-deeper" href="{{ url_for('review', slug=questionnaire.slug) }}">Review responses</a>
+      <a class="text-sm font-medium text-brand-deep hover:text-brand-deeper" href="{{ url_for('admin') }}">Questionnaires</a>
+    </div>
+  </div>
+  <p class="mt-2 text-sm leading-6 text-stone-600">{{ questionnaire.title }}. These people are expected to reply. The list is stored encrypted in <code>respondents.txt</code>.</p>
+  {% if notice %}
+    <div class="mt-4 rounded-lg bg-brand-soft px-4 py-3 text-sm text-brand-deep" role="status">{{ notice }}</div>
+  {% endif %}
+  {% if errors %}
+    <div class="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
+      <ul class="list-disc space-y-1 pl-5">
+        {% for error in errors %}
+          <li>{{ error }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+  {% if broken %}
+    <p class="mt-6 rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-10 text-center text-stone-500">The respondent list could not be read. <code>respondents.txt</code> was left unchanged.</p>
+  {% else %}
+    <div class="mt-6 grid gap-4 lg:grid-cols-3">
+      <section class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+        <h2 class="text-base font-semibold tracking-tight text-stone-900">Add an email</h2>
+        <p class="mt-1.5 text-sm leading-5 text-stone-600">Adds one address. The first one limits who can open this questionnaire.</p>
+        <form class="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end" method="post" action="{{ url_for('respondents', slug=questionnaire.slug) }}" autocomplete="off">
+          <div>
+            <label class="block text-sm font-medium text-stone-700" for="respondent-email">Email</label>
+            <input class="mt-1.5 w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-stone-900 shadow-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/30" id="respondent-email" name="email" type="email" required maxlength="200" value="{{ email }}">
+          </div>
+          <button class="inline-flex items-center justify-center rounded-md bg-brand px-4 py-2 text-sm font-medium text-brand-ink hover:bg-brand-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" type="submit">Add</button>
+        </form>
+      </section>
+      <section class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+        <h2 class="text-base font-semibold tracking-tight text-stone-900">Save this list</h2>
+        <p class="mt-1.5 text-sm leading-5 text-stone-600">Copy these emails under a name for later import, even if this questionnaire is deleted.</p>
+        {% if rows %}
+          <form class="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end" method="post" action="{{ url_for('save_questionnaire_respondent_list', slug=questionnaire.slug) }}" autocomplete="off" id="save-respondent-list-form">
+            <div>
+              <label class="block text-sm font-medium text-stone-700" for="list-name">Name</label>
+              <input class="mt-1.5 w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-stone-900 shadow-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/30" id="list-name" name="name" type="text" required maxlength="80" value="{{ list_name }}">
+            </div>
+            <button class="inline-flex items-center justify-center rounded-md bg-brand px-4 py-2 text-sm font-medium text-brand-ink hover:bg-brand-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" type="submit">Save</button>
+          </form>
+          <script>
+            (function () {
+              var form = document.getElementById("save-respondent-list-form");
+              var nameInput = document.getElementById("list-name");
+              var existing = {
+                {% for item in saved_lists %}
+                  {{ item.slug|tojson }}: {{ item.name|tojson }},
+                {% endfor %}
+              };
+              function slugFromName(value) {
+                return value
+                  .trim()
+                  .toLowerCase()
+                  .replace(/[^a-z0-9]+/g, "-")
+                  .replace(/^-+|-+$/g, "");
+              }
+              form.addEventListener("submit", function (event) {
+                var slug = slugFromName(nameInput.value || "");
+                if (slug && Object.prototype.hasOwnProperty.call(existing, slug)) {
+                  if (!confirm("Replace the saved list named " + existing[slug] + "?")) {
+                    event.preventDefault();
+                  }
+                }
+              });
+            })();
+          </script>
+        {% else %}
+          <p class="mt-4 text-sm text-stone-500">Add at least one email before saving a named list.</p>
+        {% endif %}
+      </section>
+      <section class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+        <h2 class="text-base font-semibold tracking-tight text-stone-900">Import a saved list</h2>
+        <p class="mt-1.5 text-sm leading-5 text-stone-600">Add every email from a named list. Addresses already here stay.</p>
+        {% if saved_lists %}
+          <form class="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end" method="post" action="{{ url_for('import_questionnaire_respondent_list', slug=questionnaire.slug) }}">
+            <div>
+              <label class="block text-sm font-medium text-stone-700" for="import-list">Saved list</label>
+              <select class="mt-1.5 w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-stone-900 shadow-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/30" id="import-list" name="list" required>
+                <option value="" disabled selected>Choose a list</option>
+                {% for item in saved_lists %}
+                  <option value="{{ item.slug }}" {% if item.broken %}disabled{% endif %}>
+                    {% if item.broken %}
+                      {{ item.name }} (unreadable)
+                    {% else %}
+                      {{ item.name }} ({{ item.count }})
+                    {% endif %}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <button class="inline-flex items-center justify-center rounded-md bg-brand px-4 py-2 text-sm font-medium text-brand-ink hover:bg-brand-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" type="submit"{% if not has_list %} onclick="return confirm('Import this list? Only those addresses will be able to open this questionnaire.');"{% endif %}>Import</button>
+          </form>
+        {% else %}
+          <p class="mt-4 text-sm text-stone-500">No saved lists yet.</p>
+        {% endif %}
+      </section>
+    </div>
+    {% if rows %}
+      <div class="mt-6">
+        <label class="block text-sm font-medium text-stone-700" for="respondents-filter">Filter</label>
+        <input class="mt-1.5 w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-stone-900 shadow-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/30" id="respondents-filter" type="search" placeholder="Name or email">
+        <p class="mt-2 text-sm text-stone-500">{{ count }} {% if count == 1 %}person{% else %}people{% endif %}</p>
+      </div>
+      <div class="mt-3 overflow-x-auto rounded-2xl border border-stone-200 bg-white shadow-sm">
+        <table class="w-full min-w-[36rem] border-collapse text-left text-sm">
+          <thead>
+            <tr class="border-b border-stone-200 bg-stone-50 text-xs font-medium uppercase tracking-wide text-stone-500">
+              <th class="px-3 py-2 font-medium" scope="col">Name</th>
+              <th class="px-3 py-2 font-medium" scope="col">Email</th>
+              <th class="px-3 py-2 text-right font-medium" scope="col"><span class="sr-only">Remove</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+              <tr class="border-b border-stone-100 last:border-b-0" data-respondent="{{ (row.name ~ ' ' ~ row.email)|lower }}">
+                <td class="px-3 py-2 text-stone-900">{% if row.on_signin %}{{ row.name or "Name not set" }}{% else %}Not on the sign-in list{% endif %}</td>
+                <td class="px-3 py-2 text-stone-600">{{ row.email }}</td>
+                <td class="px-3 py-2 text-right">
+                  <form method="post" action="{{ url_for('remove_questionnaire_respondent', slug=questionnaire.slug) }}" onsubmit="return confirm('Remove this person from the respondent list?');">
+                    <input type="hidden" name="email" value="{{ row.email }}">
+                    <button class="inline-flex items-center justify-center rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" type="submit">Remove</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+            <tr id="respondents-filter-empty" hidden>
+              <td class="px-3 py-6 text-center text-stone-500" colspan="3">No one matches that filter.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <script>
+        var respondentsFilter = document.getElementById("respondents-filter");
+        var respondentRows = document.querySelectorAll("[data-respondent]");
+        var respondentsEmpty = document.getElementById("respondents-filter-empty");
+        respondentsFilter.addEventListener("input", function () {
+          var query = respondentsFilter.value.trim().toLowerCase();
+          var shown = 0;
+          respondentRows.forEach(function (row) {
+            var haystack = row.getAttribute("data-respondent") || "";
+            var match = !query || haystack.indexOf(query) !== -1;
+            row.hidden = !match;
+            if (match) {
+              shown += 1;
+            }
+          });
+          respondentsEmpty.hidden = shown !== 0;
+        });
+      </script>
+    {% elif has_list %}
+      <p class="mt-6 rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-10 text-center text-stone-500">No one is on this list, so nobody can open this questionnaire.</p>
+    {% else %}
+      <p class="mt-6 rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-10 text-center text-stone-500">Anyone who can sign in can open this questionnaire. Add an email to limit it to that list.</p>
+    {% endif %}
+    {% if has_list %}
+      <section class="mt-6 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+        <h2 class="text-lg font-semibold tracking-tight text-stone-900">Allow everyone who can sign in</h2>
+        <p class="mt-2 text-sm leading-6 text-stone-600">This removes the respondent list. Anyone who can sign in can then open the questionnaire, and the replied / waiting counts are hidden.</p>
+        <form class="mt-4" method="post" action="{{ url_for('respondents_allow_everyone', slug=questionnaire.slug) }}" onsubmit="return confirm('Allow everyone who can sign in to open this questionnaire? The respondent list will be removed.');">
+          <button class="inline-flex items-center justify-center rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" type="submit">Allow everyone who can sign in</button>
+        </form>
+      </section>
+    {% endif %}
+  {% endif %}
+{% endblock %}

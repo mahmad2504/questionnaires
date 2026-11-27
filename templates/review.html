@@ -11,6 +11,7 @@
       {% endif %}
     </div>
     <div class="flex flex-wrap gap-2">
+      <a class="inline-flex items-center justify-center rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 no-underline hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" href="{{ url_for('respondents', slug=questionnaire.slug) }}">Respondents</a>
       <a class="inline-flex items-center justify-center rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 no-underline hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" href="{{ url_for('download_csv', slug=questionnaire.slug) }}">Download summary.csv</a>
     </div>
   </div>
@@ -21,8 +22,10 @@
     <button class="inline-flex shrink-0 items-center justify-center rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" type="button" data-copy="{{ team_link }}">Copy</button>
   </div>
 
-  {% if not model.has_list %}
-    <p class="mt-4 text-sm text-stone-500">No expected email list was provided. Add <code>respondents.txt</code> to this questionnaire folder to track who has replied.</p>
+  {% if questionnaire.respondents_broken %}
+    <p class="mt-4 text-sm text-red-800">The respondent list could not be read. <code>respondents.txt</code> was left unchanged.</p>
+  {% elif not model.has_list %}
+    <p class="mt-4 text-sm text-stone-500">No expected email list was provided. Open <a class="font-medium text-brand-deep hover:text-brand-deeper" href="{{ url_for('respondents', slug=questionnaire.slug) }}">Respondents</a> to track who has replied.</p>
   {% endif %}
 
   {% if model.rows or model.other_rows %}
@@ -56,7 +59,7 @@
   {% if model.other_rows %}
     <section class="mt-8" data-person-table>
       <h2 class="text-lg font-semibold tracking-tight text-stone-900">Other replies</h2>
-      <p class="mt-2 text-sm text-stone-500">These emails were not in <code>respondents.txt</code>. The responses are kept.</p>
+      <p class="mt-2 text-sm text-stone-500">These emails were not on the respondent list. The responses are kept.</p>
       <div class="mt-4">
         {% set rows = model.other_rows %}
         {% include "review_table.html" %}

@@ -12,7 +12,9 @@
         <li class="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
           <h2 class="text-lg font-semibold tracking-tight text-stone-900">{{ card.title }}</h2>
           {% with start=card.start, start_label=card.start_label, started=card.started, deadline=card.deadline, deadline_label=card.deadline_label, overdue=card.deadline_overdue %}{% include "schedule.html" %}{% endwith %}
-          {% if card.progress %}
+          {% if card.respondents_broken %}
+            <p class="mt-2 text-sm text-red-800">The respondent list could not be read. <code>respondents.txt</code> was left unchanged.</p>
+          {% elif card.progress %}
             {% with progress=card.progress %}{% include "progress.html" %}{% endwith %}
           {% else %}
             <p class="mt-2 text-sm text-stone-500">No expected email list</p>
@@ -23,6 +25,7 @@
               <button class="inline-flex items-center justify-center rounded-md bg-brand px-4 py-2 text-sm font-medium text-brand-ink hover:bg-brand-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" type="submit">Turn on</button>
             </form>
             <a class="inline-flex items-center justify-center rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 no-underline hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" href="{{ card.review_link }}">Review responses</a>
+            <a class="inline-flex items-center justify-center rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 no-underline hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2" href="{{ card.respondents_link }}">Respondents</a>
           </div>
         </li>
       {% endfor %}

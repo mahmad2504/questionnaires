@@ -27,7 +27,7 @@
         <span class="text-sm text-stone-500">{{ person.email }}</span>
       </div>
       {% if not person.name %}
-        <p class="mt-2 text-sm text-stone-500">Add their name in <code>allowed.txt</code> as <code>Name &lt;{{ person.email }}&gt;</code> before you can record an update.</p>
+        <p class="mt-2 text-sm text-stone-500">Add their name on the <a class="font-medium text-brand-deep hover:text-brand-deeper" href="{{ url_for('people') }}">People</a> page before you can record an update.</p>
       {% endif %}
 
       {% if saved %}
